@@ -11,10 +11,10 @@ export async function main(ns) {
         const maxMoney = ns.getServerMaxMoney(target)
         const currentMoney = ns.getServerMoneyAvailable(target)
 
-        if (secLevel > minSecLevel * 1.2) {
+        if (secLevel > minSecLevel * 2) {
             await ns.weaken(target)
 
-            console.log("Security level over 1.2, weakening now.")
+            console.log("Security level over 2x minimum, weakening now.")
         }
 
         //if current money is close to max money, hack
