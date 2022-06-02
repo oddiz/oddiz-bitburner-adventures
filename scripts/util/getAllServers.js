@@ -1,5 +1,5 @@
-/** @param {import("..").NS} ns */
-export async function main(ns) {
+/** @param {import("../..").NS} ns */
+export async function getAllServers(ns) {
 
 
 
@@ -22,8 +22,23 @@ export async function main(ns) {
         }
     }
 
-    await ns.write("servers.js", `export const allServers =  `, "w")
-    await ns.write("servers.js", JSON.stringify(serversChecked), "a")
+    const result = []
+    const remoteServers = ns.getPurchasedServers();
+
+    for (const server of serversChecked) {
+
+        if (remoteServers.includes(server)) {
+            continue;
+        } else {
+            result.push(server);
+        }
+
+    }
+
+    await ns.write("all_servers.js", `export const allServers =  `, "w")
+    await ns.write("all_servers.js", JSON.stringify(serversChecked), "a")
+
+    return serversChecked
 }
 
 //checks if an item already exists in an array

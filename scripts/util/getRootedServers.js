@@ -1,16 +1,21 @@
+//gets all servers found with getServers.js
+
 const rootOptions = ["brutessh", "ftpcrack"]
 
 import {
-    allServers
-} from "./servers";
+    getAllServers
+} from "util/getAllServers";
 
 const rootedServers = [];
 
-/** @param {import("..").NS} ns */
-export async function main(ns) {
+/** @param {import("../..").NS} ns */
+export async function getRootedServers(ns) {
+
+    const allServers = await getAllServers(ns);
 
     const targets = ns.args.length ? ns.args : allServers;
 
+    const playerHackingLevel = ns.getHackingLevel()
     for (const target of targets) {
         if (ns.hasRootAccess(target)) {
             ns.print(target, " is already rooted!");
@@ -21,11 +26,15 @@ export async function main(ns) {
             if (rootedServers.includes(target)) {
                 continue
             }
-            rootedServers.push(target);
+            rootedServers.push({
+                name: target,
+                hackLevel: ns.getServerRequiredHackingLevel(target),
+                maxMoney: ns.getServerMaxMoney(target),
+            });
             continue;
         }
 
-        if (ns.getHackingLevel() < ns.getServerRequiredHackingLevel(target)) {
+        if (playerHackingLevel < ns.getServerRequiredHackingLevel(target)) {
             ns.print(target, " is not in your hacking level!");
             // continue;
         }
@@ -49,7 +58,11 @@ export async function main(ns) {
         if (ns.hasRootAccess(target)) {
             ns.print(target, " is now rooted!");
             if (target !== "home" || !rootedServers.includes(target)) {
-                rootedServers.push(target);
+                rootedServers.push({
+                    name: target,
+                    hackLevel: ns.getServerRequiredHackingLevel(target),
+                    maxMoney: ns.getServerMaxMoney(target),
+                });
             }
 
         }
@@ -87,6 +100,12 @@ export async function main(ns) {
         }
     }
 
+    //sort rooted servers by max money
+    const sortedRootedServers = rootedServers.sort((a, b) => b.maxMoney - a.maxMoney).filter(server => server.hackLevel < playerHackingLevel).map(server => server.name);
+
+    return sortedRootedServers
+    /*
     await ns.write("rooted_servers.js", `export const rootedServers =  `, "w")
-    await ns.write("rooted_servers.js", JSON.stringify(rootedServers), "a")
+    await ns.write("rooted_servers.js", JSON.stringify(sortedRootedServers), "a")
+    */
 }

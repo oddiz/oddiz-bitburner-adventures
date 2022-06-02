@@ -14,7 +14,7 @@ export async function main(ns) {
         if (secLevel > minSecLevel * 2) {
             await ns.weaken(target)
 
-            console.log("Security level over 2x minimum, weakening now.")
+            ns.print("Security level over 2x minimum, weakening now.")
         }
 
         //if current money is close to max money, hack
@@ -23,6 +23,8 @@ export async function main(ns) {
         } else {
             await ns.grow(target)
         }
+
+        await ns.sleep(2000);
 
     }
 }
