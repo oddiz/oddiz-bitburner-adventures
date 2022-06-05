@@ -3,9 +3,13 @@ import {
 } from "util/getRootedServers";
 
 const DESIRED_PARALLEL_SCRIPTS = 4;
-/** @param {import("../..").NS} ns */
+/** @param {import("../../..").NS} ns */
 export async function main(ns) {
+
+    ns.tail()
+
     const targets = await getRootedServers(ns);
+    ns.print(targets)
 
     while (true) {
         const remoteServers = ns.getPurchasedServers();
@@ -21,6 +25,9 @@ export async function main(ns) {
 
 
         for (const target of [...targets, ...remoteServers]) {
+            if (!ns.serverExists(target)) {
+                continue;
+            }
 
             ns.print("Processing ", target, " ...");
 

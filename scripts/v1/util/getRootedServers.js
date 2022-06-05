@@ -1,6 +1,6 @@
 //gets all servers found with getServers.js
 
-const rootOptions = ["brutessh", "ftpcrack"]
+const rootOptions = ["brutessh", "ftpcrack", "relaysmtp"]
 
 import {
     getAllServers
@@ -8,7 +8,7 @@ import {
 
 const rootedServers = [];
 
-/** @param {import("../..").NS} ns */
+/** @param {import("../../..").NS} ns */
 export async function getRootedServers(ns) {
 
     const allServers = await getAllServers(ns);
@@ -17,6 +17,12 @@ export async function getRootedServers(ns) {
 
     const playerHackingLevel = ns.getHackingLevel()
     for (const target of targets) {
+
+        //check if server is purchased server
+        const serverInfo = ns.getServer(target);
+        if (serverInfo.purchasedByPlayer) {
+            continue;
+        }
         if (ns.hasRootAccess(target)) {
             ns.print(target, " is already rooted!");
 
@@ -54,7 +60,6 @@ export async function getRootedServers(ns) {
 
         ns.nuke(target);
 
-
         if (ns.hasRootAccess(target)) {
             ns.print(target, " is now rooted!");
             if (target !== "home" || !rootedServers.includes(target)) {
@@ -80,8 +85,8 @@ export async function getRootedServers(ns) {
                 ns.ftpcrack(target);
                 break;
 
-            case "smtp":
-                ns.print("Hacking ", target, " with smtp...");
+            case "relaysmtp":
+                ns.print("Hacking ", target, " with relay smtp...");
                 ns.relaysmtp(target);
                 break;
 
@@ -103,9 +108,10 @@ export async function getRootedServers(ns) {
     //sort rooted servers by max money
     const sortedRootedServers = rootedServers.sort((a, b) => b.maxMoney - a.maxMoney).filter(server => server.hackLevel < playerHackingLevel).map(server => server.name);
 
+    await ns.write("/logs/rooted_servers.js", `export const rootedServers =  `, "w")
+    await ns.write("/logs/rooted_servers.js", JSON.stringify(sortedRootedServers), "a")
+
     return sortedRootedServers
-    /*
-    await ns.write("rooted_servers.js", `export const rootedServers =  `, "w")
-    await ns.write("rooted_servers.js", JSON.stringify(sortedRootedServers), "a")
-    */
+
+
 }

@@ -1,7 +1,9 @@
 const MAX_SERVER_COUNT = 25
 
-/** @param {import("../../").NS} ns */
+/** @param {import("../../..").NS} ns */
 export async function main(ns) {
+
+    ns.tail()
 
     let minimumRamMult = 6;
     while (true) {

@@ -1,4 +1,4 @@
-/** @param {import("..").NS} ns */
+/** @param {import("../..").NS} ns */
 export async function main(ns) {
 
     const target = ns.args[0];
@@ -27,4 +27,5 @@ export async function main(ns) {
         await ns.sleep(2000);
 
     }
+    ns.server
 }

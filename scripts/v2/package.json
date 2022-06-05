@@ -1,0 +1,8 @@
+{
+  "name": "v2",
+  "version": "1.0.0",
+  "description": "oddiz's bitburner scripts",
+  "main": "main.ts",
+  "author": "oddiz",
+  "license": "MIT"
+}
