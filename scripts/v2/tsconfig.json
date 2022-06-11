@@ -5,7 +5,9 @@
 		"rootDir": "src/",
 		"baseUrl": "src/",
 		"paths": {
-			"/typings/*": ["typings/*"]
+			"/typings/*": ["typings/*"],
+			"/utils/*": ["utils/*"],
+			"/modules/*": ["modules/*"]
 		},
 		"outDir": "build/",
 		"moduleResolution": "node",

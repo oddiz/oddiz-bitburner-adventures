@@ -4,5 +4,8 @@
   "description": "oddiz's bitburner scripts",
   "main": "main.ts",
   "author": "oddiz",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+      "build": "tsc"
+  }
 }

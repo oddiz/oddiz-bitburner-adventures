@@ -4,11 +4,13 @@ const rootOptions = ["brutessh", "ftpcrack", "relaysmtp"]
 
 import {
     getAllServers
-} from "util/getAllServers";
+} from "utils/getAllServers";
 
 const rootedServers = [];
 
-/** @param {import("../../..").NS} ns */
+/** 
+ * Hacks and returs all rooted servers suitable for players hacking level.
+ * @param {import("../../..").NS} ns */
 export async function getRootedServers(ns) {
 
     const allServers = await getAllServers(ns);

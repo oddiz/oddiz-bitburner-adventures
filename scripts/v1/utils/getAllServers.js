@@ -1,4 +1,8 @@
-/** @param {import("../..").NS} ns */
+/**
+ * Retuns all accessible servers. 
+ * @param {import("../..").NS} ns 
+ * 
+ */
 export async function getAllServers(ns) {
 
 
@@ -35,8 +39,8 @@ export async function getAllServers(ns) {
 
     }
 
-    await ns.write("all_servers.js", `export const allServers =  `, "w")
-    await ns.write("all_servers.js", JSON.stringify(serversChecked), "a")
+    //await ns.write("all_servers.js", `export const allServers =  `, "w")
+    //await ns.write("all_servers.js", JSON.stringify(serversChecked), "a")
 
     return serversChecked
 }
