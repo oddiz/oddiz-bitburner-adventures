@@ -35,17 +35,47 @@ export function logServerDetails(ns: NS, server: string) {
 	const maxMoney = ns.getServerMaxMoney(server);
 	const minSec = ns.getServerMinSecurityLevel(server);
 	const sec = ns.getServerSecurityLevel(server);
+
+	const hackTime = ns.getHackTime(server);
+	const growTime = ns.getGrowTime(server);
+	const weakenTime = ns.getWeakenTime(server);
+
 	ns.print(`${server}:`);
 	ns.print(
-		` $_______: ${ns.nFormat(money, "$0.000a")} / ${ns.nFormat(maxMoney, "$0.000a")} (${(
+		`Money: ${ns.nFormat(money, "$0.000a")} / ${ns.nFormat(maxMoney, "$0.000a")} (${(
 			(money / maxMoney) *
 			100
 		).toFixed(2)}%)`
 	);
-	ns.print(` security: +${(sec - minSec).toFixed(2)}`);
-	ns.print(` hack____: ${ns.tFormat(ns.getHackTime(server))} (t=${Math.ceil(ns.hackAnalyzeThreads(server, money))})`);
+	ns.print(`security: +${(sec - minSec).toFixed(2)}\n`);
+
+	const curMoneyHackingThreadsAmount = Math.ceil(ns.hackAnalyzeThreads(server, money));
+	const hackAnalyzeResult = ns.hackAnalyze(server);
+	const moneyPerHack = Math.floor(money * hackAnalyzeResult);
 	ns.print(
-		` grow____: ${ns.tFormat(ns.getGrowTime(server))} (t=${Math.ceil(ns.growthAnalyze(server, maxMoney / money))})`
+		`hack____: ${ns.tFormat(hackTime)} (t=${curMoneyHackingThreadsAmount}),\nSec increase: ${ns.hackAnalyzeSecurity(
+			curMoneyHackingThreadsAmount,
+			server
+		)}\n`
 	);
-	ns.print(` weaken__: ${ns.tFormat(ns.getWeakenTime(server))} (t=${Math.ceil((sec - minSec) * 20)})`);
+
+	const growthThreadsAmount = Math.ceil(ns.growthAnalyze(server, maxMoney / money));
+	const maxGrowthSecIncrease = ns.growthAnalyzeSecurity(growthThreadsAmount, server, 1);
+	ns.print(`grow____: ${ns.tFormat(growTime)} (t=${growthThreadsAmount}),\nSec increase: ${maxGrowthSecIncrease}\n`);
+
+	ns.print(
+		`weaken__: ${ns.tFormat(weakenTime)} (t=${Math.ceil((sec - minSec) * 20)}) (tAfterGrowWeaken=${Math.ceil(
+			(sec + maxGrowthSecIncrease - minSec) * 20
+		)})\n`
+	);
+
+	ns.print(
+		`Analytics:\n$ per thread: ${moneyPerHack} $\n$ per sec(Hack only) per thread: ${(
+			moneyPerHack /
+			(ns.getHackTime(server) / 1000)
+		).toFixed(2)}$\n$ per sec per thread(full cycle): ${(
+			moneyPerHack /
+			(Math.max(weakenTime, hackTime, growTime) / 1000)
+		).toFixed(2)}$`
+	);
 }

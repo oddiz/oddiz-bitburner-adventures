@@ -7,11 +7,13 @@
 		"paths": {
 			"/typings/*": ["typings/*"],
 			"/utils/*": ["utils/*"],
-			"/modules/*": ["modules/*"]
+			"/modules/*": ["modules/*"],
+			"/payloads/*": ["payloads/*"]
 		},
 		"outDir": "build/",
 		"moduleResolution": "node",
 		"strictNullChecks": true,
-		"strictPropertyInitialization": true
+		"strictPropertyInitialization": true,
+		"strictBindCallApply": true
 	}
 }

@@ -1,1 +1,0 @@
-export const rootedServers = ["iron-gym", "harakiri-sushi", "nectar-net", "hong-fang-tea", "CSEC", "omega-net", "the-hub", "max-hardware", "silver-helix", "joesguns", "sigma-cosmetics", "zer0", "phantasy", "avmnite-02h", "johnson-ortho", "neo-net", "crush-fitness", "foodnstuff", "n00dles"]

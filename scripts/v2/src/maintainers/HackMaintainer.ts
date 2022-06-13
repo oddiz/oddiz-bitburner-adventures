@@ -1,11 +1,11 @@
-import { getRootedServers } from "utils/getRootedServers";
+import { getRootedServers } from "/utils/getRootedServers";
 
 const DESIRED_PARALLEL_SCRIPTS = 4;
 /** @param {import("../../..").NS} ns */
 export async function main(ns) {
 	ns.tail();
 
-	const targets = await (await getRootedServers(ns)).map((server) => server.name);
+	const targets = await (await getRootedServers(ns)).map((server) => server.hostname);
 	ns.print(targets);
 
 	while (true) {
