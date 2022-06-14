@@ -19,6 +19,7 @@ export class Thread {
 		this.targetHostname = hostname;
 		this.targetServer = this.ns.getServer(hostname);
 		this.targetServerHackData = null;
+		this.run();
 	}
 
 	async run(): Promise<boolean> {
@@ -53,7 +54,7 @@ export class Thread {
 	 * @returns Promise<boolean> true if executed successfully, false if not
 	 */
 	private async readyTargetForLoop(targetServerHackData: ServerHackData): Promise<boolean> {
-		if (isReadyForLoop(targetServerHackData)) return true;
+		if (this.isReadyForLoop(targetServerHackData)) return true;
 
 		//if not ready for loop grow to max while weakening to min
 		const growTime = Math.floor(targetServerHackData.growTime);
@@ -64,6 +65,7 @@ export class Thread {
 		let maxTime = 0;
 		if (growTime > weakenTime) {
 			maxTime = growTime;
+
 			growExecTime = new Date().getTime();
 			weakenExecTime = growExecTime + growTime - weakenTime - 2000; // 2 sec buffer
 		} else {
@@ -96,25 +98,28 @@ export class Thread {
 
 		if (secToDecrease > 0) await this.serverManager.dispatch(weakenTask);
 
-		const waitTime = maxTime + 1000;
+		const waitTime = maxTime + 10000;
 		this.log(`Waiting for ${this.ns.tFormat(waitTime)}...`);
 		await sleep(waitTime);
 
 		const newTargetHackData = await getServerHackData(this.ns, this.targetHostname);
 		this.updateHackData(newTargetHackData);
 
-		if (isReadyForLoop(newTargetHackData)) return true;
+		if (this.isReadyForLoop(newTargetHackData)) return true;
 		else return false;
 	}
 
 	updateHackData(hackData: ServerHackData) {
 		this.targetServerHackData = hackData;
 	}
-	log(message: string) {
+	log(message: string | number) {
 		this.ns.print(`[Thread for ${this.targetHostname}] ` + message);
+		console.log(`[Thread for ${this.targetHostname}] ` + message);
 	}
-}
 
-function isReadyForLoop(serverHackData: ServerHackData): boolean {
-	return serverHackData.growthThreadsToMax === 0 && serverHackData.weakenThreadsToMin === 0;
+	isReadyForLoop(serverHackData: ServerHackData): boolean {
+		this.log(serverHackData.growthThreadsToMax);
+		this.log(serverHackData.weakenThreadsToMin);
+		return serverHackData.growthThreadsToMax === 0 && serverHackData.weakenThreadsToMin === 0;
+	}
 }

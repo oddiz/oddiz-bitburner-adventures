@@ -1,6 +1,7 @@
 import { ThreadManager } from "./modules/ThreadManager/ThreadManager";
 import { NS } from "typings/Bitburner";
 import { ServerManager } from "./modules/ServerManager/ServerManager";
+import { sleep } from "/utils/sleep";
 
 export async function main(ns: NS) {
 	ns.tail();
@@ -12,4 +13,5 @@ export async function main(ns: NS) {
 	ns.print("Running Thread Manager");
 	const threadManager = new ThreadManager(ns, serverManager);
 	await threadManager.init();
+	while (true) await ns.asleep(100000);
 }

@@ -1,7 +1,9 @@
+import { NS } from "/typings/Bitburner";
+
 const MAX_SERVER_COUNT = 25;
 
 /** @param {import("../../..").NS} ns */
-export async function main(ns) {
+export async function main(ns: NS) {
 	ns.tail();
 
 	let minimumRamMult = 6;

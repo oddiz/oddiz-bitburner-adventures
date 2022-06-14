@@ -58,13 +58,13 @@ export class ServerManager {
 		this.processingQueue = false;
 	}
 	async init() {
-		this.ns.disableLog("ALL");
+		this.ns.disableLog("scp");
 		this.log("Starting...");
 		this.log("Getting script sizes...");
 		this.getScriptSizes();
 
 		this.log("Getting remote servers...");
-		await this.refreshRemoteServers();
+		this.refreshRemoteServers();
 
 		this.log("Copying payloads to all servers...");
 		await this.copyPayloads();
@@ -72,36 +72,76 @@ export class ServerManager {
 		this.totalRam = await this.getTotalRam();
 		//this.log(`Total RAM: ${this.totalRam}GB`);
 
-		this.log("Listening for tasks...");
-		this.processTasks();
-
 		return true;
 	}
 
-	private async processTasks() {
+	async startListening() {
+		this.log("Listening for tasks...");
+		await this.processTasks();
+	}
+
+	async processTasks() {
 		const LAGGING_TASKS_DIR = "/logs/lagging_tasks.txt";
 		this.processingQueue = false;
-		while (true) {
-			if (this.taskQueue.length === 0) {
-				await this.ns.write(LAGGING_TASKS_DIR, "", "w");
-				await sleep(500);
-				continue;
+
+		while (this.ns.scriptRunning("main.js", "home")) {
+			try {
+				if (this.taskQueue.length === 0) {
+					await this.ns.write(LAGGING_TASKS_DIR, "", "w");
+					await sleep(1000);
+					continue;
+				}
+				this.processingQueue = true;
+				this.taskQueue.sort((a, b) => a.executeTime - b.executeTime);
+				//this.log(JSON.stringify(this.taskQueue));
+				const nextTask = this.taskQueue.shift();
+				if (!nextTask) continue;
+				this.processingQueue = false;
+
+				const boundExec = executeTask.bind(this);
+				await boundExec(nextTask);
+
+				await sleep(1000);
+			} catch (error) {
+				this.log("Error in processTasks loop: " + error);
 			}
-			this.processingQueue = true;
-			this.taskQueue.sort((a, b) => a.executeTime - b.executeTime);
-			//this.log(JSON.stringify(this.taskQueue));
-			const nextTask = this.taskQueue.shift();
-			if (!nextTask) continue;
-			this.processingQueue = false;
-
-			const execResult = await executeTask.bind(this)(nextTask);
-
-			if (execResult.status) await sleep(200);
 		}
+		/* 
+
+		const intervalId = setInterval(loopFunction, 500);
+
+		async function loopFunction() {
+			try {
+				if (!self.ns.scriptRunning("main.js", "home")) {
+					killInterval();
+				}
+				if (self.taskQueue.length === 0) {
+					//await self.ns.write(LAGGING_TASKS_DIR, "", "w");
+
+					return;
+				}
+				self.processingQueue = true;
+				self.taskQueue.sort((a, b) => a.executeTime - b.executeTime);
+				//self.log(JSON.stringify(self.taskQueue));
+				const nextTask = self.taskQueue.shift();
+				if (!nextTask) return;
+				self.processingQueue = false;
+
+				const boundExec = executeTask.bind(self);
+				await boundExec(nextTask);
+			} catch (error) {
+				self.log("Error in processTasks loop: " + error);
+			}
+		}
+        function killInterval() {
+            clearInterval(intervalId);
+        }
+
+        */
 
 		async function executeTask(this: ServerManager, task: Task): Promise<ExecuteTaskReturn> {
 			//get ram status
-			const ramInfo = await this.getAvailableRam();
+			const ramInfo = this.getAvailableRam();
 
 			//calculate how many threads needed for the task
 			const scriptSize =
@@ -247,10 +287,12 @@ export class ServerManager {
 				};
 			}
 		}
+
+		return true;
 	}
 
 	async getTotalRam() {
-		const servers = await this.refreshRemoteServers();
+		const servers = this.refreshRemoteServers();
 		let totalRam = 0;
 		for (const server of servers) {
 			totalRam += server.maxRam;
@@ -258,11 +300,11 @@ export class ServerManager {
 		return totalRam;
 	}
 
-	async getAvailableRam(): Promise<{
+	getAvailableRam(): {
 		totalAvailableRam: number;
 		servers: ServerRamInfo[];
-	}> {
-		const servers = await this.refreshRemoteServers();
+	} {
+		const servers = this.refreshRemoteServers();
 
 		const serversWithRamInfo: ServerRamInfo[] = [];
 		let totalAvailableRam = 0;
@@ -288,8 +330,8 @@ export class ServerManager {
 		};
 	}
 
-	async refreshRemoteServers() {
-		this.remoteServers = await getRemoteServers(this.ns);
+	refreshRemoteServers() {
+		this.remoteServers = getRemoteServers(this.ns);
 
 		return this.remoteServers;
 	}
@@ -308,6 +350,8 @@ export class ServerManager {
 			await sleep(100);
 		}
 		await this.addTask(task);
+
+		return true;
 	}
 
 	getScriptSizes() {
@@ -332,5 +376,6 @@ export class ServerManager {
 	}
 	log(message: string) {
 		this.ns.print("[ServerManager] " + message);
+		console.log("[ServerManager] " + message);
 	}
 }

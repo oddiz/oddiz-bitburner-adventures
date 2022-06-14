@@ -1,6 +1,6 @@
 import { NS, Server } from "typings/Bitburner";
 
-export async function getRemoteServers(ns: NS) {
+export function getRemoteServers(ns: NS) {
 	const remoteServers = ns.getPurchasedServers();
 
 	const detailedRemoteServers: Server[] = [];

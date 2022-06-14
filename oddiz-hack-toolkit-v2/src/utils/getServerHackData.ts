@@ -29,7 +29,6 @@ export async function getServerHackData(ns: NS, server: string): Promise<ServerH
 	const curSec = ns.getServerSecurityLevel(server);
 
 	let growthThreadsToMax = Math.ceil(ns.growthAnalyze(server, maxMoney / money));
-	if (growthThreadsToMax === 0) growthThreadsToMax = 1;
 	const moneyPerHack = Math.floor(money * ns.hackAnalyze(server));
 	const result: ServerHackData = {
 		hostname: hostname,
