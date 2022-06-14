@@ -19,13 +19,12 @@ export class Thread {
 		this.targetHostname = hostname;
 		this.targetServer = this.ns.getServer(hostname);
 		this.targetServerHackData = null;
-		this.run();
 	}
 
 	async run(): Promise<boolean> {
 		this.ns.tail();
 		this.ns.print("Running Thread for " + this.targetServer.organizationName);
-		this.targetServerHackData = await getServerHackData(this.ns, this.targetHostname);
+		this.targetServerHackData = getServerHackData(this.ns, this.targetHostname);
 		if (!this.targetServerHackData) {
 			this.log("ERROR: Could not get server hack data. Terminating thread...)");
 
@@ -102,7 +101,7 @@ export class Thread {
 		this.log(`Waiting for ${this.ns.tFormat(waitTime)}...`);
 		await sleep(waitTime);
 
-		const newTargetHackData = await getServerHackData(this.ns, this.targetHostname);
+		const newTargetHackData = getServerHackData(this.ns, this.targetHostname);
 		this.updateHackData(newTargetHackData);
 
 		if (this.isReadyForLoop(newTargetHackData)) return true;
@@ -118,8 +117,6 @@ export class Thread {
 	}
 
 	isReadyForLoop(serverHackData: ServerHackData): boolean {
-		this.log(serverHackData.growthThreadsToMax);
-		this.log(serverHackData.weakenThreadsToMin);
 		return serverHackData.growthThreadsToMax === 0 && serverHackData.weakenThreadsToMin === 0;
 	}
 }

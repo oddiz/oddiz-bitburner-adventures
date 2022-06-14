@@ -16,7 +16,7 @@ export interface ServerHackData {
 	moneyPerSecPerThread: number;
 }
 
-export async function getServerHackData(ns: NS, server: string): Promise<ServerHackData> {
+export function getServerHackData(ns: NS, server: string): ServerHackData {
 	const hostname = server;
 
 	let money = ns.getServerMoneyAvailable(server);

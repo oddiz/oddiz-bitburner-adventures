@@ -27,12 +27,12 @@ export class ThreadManager {
 	}
 
 	async deployThreads() {
-		//const targets: string[] = (await getRootedServers(this.ns)).map((server) => server.hostname);
+		const targets: string[] = (await getRootedServers(this.ns)).map((server) => server.hostname);
 
-		const targets = ["iron-gym"];
+		//const targets = ["iron-gym", "foodnstuff"];
 		for (const target of targets) {
 			const thread = new Thread(this.ns, this.serverManager, target);
-
+			thread.run();
 			this.runningThreads.set(target, thread);
 		}
 	}

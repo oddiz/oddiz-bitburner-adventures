@@ -6,6 +6,9 @@
   "author": "oddiz",
   "license": "MIT",
   "scripts": {
-      "build": "tsc"
+    "build": "rimraf ./build/* && tsc"
+  },
+  "devDependencies": {
+    "rimraf": "^3.0.2"
   }
 }
