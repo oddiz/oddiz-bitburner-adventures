@@ -40,7 +40,7 @@ export async function main(ns: NS) {
 		const ramSize = calculateRamSize(playerMoney);
 
 		if (ramSize) {
-			const serverName = `${Date.now()}-${ramSize}GB`;
+			const serverName = `${Math.floor(Math.random() * 10000)}-${ramSize}GB`;
 			ns.purchaseServer(serverName, ramSize);
 		}
 

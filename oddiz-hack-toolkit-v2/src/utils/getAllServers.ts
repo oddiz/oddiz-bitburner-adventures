@@ -5,7 +5,7 @@ import { NS } from "typings/Bitburner";
  * @param {import("typings/Bitburner").NS} ns
  *
  */
-export async function getAllServers(ns: NS) {
+export function getAllServers(ns: NS) {
 	ns.disableLog("ALL");
 	ns.tail();
 	const serversToCheck = ["home"];

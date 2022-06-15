@@ -1,0 +1,8 @@
+node_modules/
+.nyc_output/
+components/
+coverage/
+build/
+umd/
+.tern-port
+npm-debug.log

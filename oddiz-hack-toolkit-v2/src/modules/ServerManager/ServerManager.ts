@@ -1,5 +1,7 @@
 import { NS, Server } from "typings/Bitburner";
 import { getRemoteServers } from "/utils/getRemoteServers";
+import { getRootedServers } from "/utils/getRootedServers";
+import { killAll } from "/utils/killAll";
 import { sleep } from "/utils/sleep";
 
 const PROCESS_TASK_TICKRATE = 1000;
@@ -69,6 +71,8 @@ export class ServerManager {
 		this.log("Copying payloads to all servers...");
 		await this.copyPayloads();
 
+		this.log("Killing all processes on all servers...");
+		await killAll(this.ns);
 		this.totalRam = await this.getTotalRam();
 		//this.log(`Total RAM: ${this.totalRam}GB`);
 
@@ -87,21 +91,24 @@ export class ServerManager {
 		while (this.ns.scriptRunning("main.js", "home")) {
 			try {
 				if (this.taskQueue.length === 0) {
-					await this.ns.write(LAGGING_TASKS_DIR, "", "w");
-					await sleep(1000);
+					//await this.ns.write(LAGGING_TASKS_DIR, "", "w");
+					await sleep(250);
 					continue;
 				}
 				this.processingQueue = true;
-				this.taskQueue.sort((a, b) => a.executeTime - b.executeTime);
+
 				//this.log(JSON.stringify(this.taskQueue));
 				const nextTask = this.taskQueue.shift();
+				if (!nextTask?.threads) {
+					continue;
+				}
 				if (!nextTask) continue;
 				this.processingQueue = false;
 
 				const boundExec = executeTask.bind(this);
-				await boundExec(nextTask);
+				boundExec(nextTask);
 
-				await sleep(1000);
+				await sleep(100);
 			} catch (error) {
 				this.log("Error in processTasks loop: " + error);
 			}
@@ -139,7 +146,7 @@ export class ServerManager {
 
         */
 
-		async function executeTask(this: ServerManager, task: Task): Promise<ExecuteTaskReturn> {
+		function executeTask(this: ServerManager, task: Task): ExecuteTaskReturn {
 			//get ram status
 			const ramInfo = this.getAvailableRam();
 
@@ -155,14 +162,10 @@ export class ServerManager {
 			//check if we have enough ram
 
 			if (ramInfo.totalAvailableRam < scriptSize) {
-				this.log(`Not enough RAM to execute even 1 thread. I can't keep up with this workload!!`);
+				//this.log(`Not enough RAM to execute even 1 thread. I can't keep up with this workload!!`);
 
-				await this.addTask(task);
-				await this.ns.write(
-					LAGGING_TASKS_DIR,
-					JSON.stringify(this.taskQueue) + " (NOT EXECUTED AT ALL)" + "\n",
-					"a"
-				);
+				this.addTask(task);
+				//this.ns.write(LAGGING_TASKS_DIR, JSON.stringify(this.taskQueue) + " (NOT EXECUTED AT ALL)" + "\n", "a");
 				return {
 					status: "failed",
 					task: task,
@@ -173,9 +176,9 @@ export class ServerManager {
 			}
 
 			if (ramInfo.totalAvailableRam < ramNeeded) {
-				this.log(
-					`Not enough RAM to execute task. Needed: ${ramNeeded}GB, Available: ${ramInfo.totalAvailableRam}GB`
-				);
+				//this.log(
+				//	`Not enough RAM to execute task. Needed: ${ramNeeded}GB, Available: ${ramInfo.//totalAvailableRam}GB`
+				//);
 			}
 
 			const activeTask = task;
@@ -183,7 +186,9 @@ export class ServerManager {
 			let taskExecuted = false;
 
 			for (const server of ramInfo.servers) {
-				const serverThreadCap = Math.floor(server.availableRam / scriptSize);
+				const serverAvailableRam =
+					this.ns.getServerMaxRam(server.hostname) - this.ns.getServerUsedRam(server.hostname);
+				const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
 
 				if (serverThreadCap < 1) {
 					//we don't have enough ram for even 1 task in server
@@ -242,6 +247,8 @@ export class ServerManager {
 					this.log("Server RAM Info: " + JSON.stringify(server));
 					this.log("Server thread Capacity: " + serverThreadCap);
 
+					this.addTask(activeTask);
+
 					return {
 						status: "failed",
 						task: task,
@@ -255,13 +262,13 @@ export class ServerManager {
 			//if we reach here that means we didn't execute the task or partially executed it
 
 			if (taskExecuted) {
-				this.log("Task partially executed, remaining threads: " + activeTask.threads);
-				this.log("Adding remaining task back to queue");
+				//this.log("Task partially executed, remaining threads: " + activeTask.threads);
+				//this.log("Adding remaining task back to queue");
 
-				await this.addTask(activeTask);
+				this.addTask(activeTask);
 
 				//maybe could remove the await here?
-				await this.ns.write(LAGGING_TASKS_DIR, JSON.stringify(this.taskQueue) + "\n", "a");
+				//this.ns.write(LAGGING_TASKS_DIR, JSON.stringify(this.taskQueue) + "\n", "a");
 
 				return {
 					status: "success",
@@ -272,10 +279,8 @@ export class ServerManager {
 					},
 				};
 			} else {
-				this.log(
-					`Not enough RAM to execute even 1 thread for every server. This shouldn't happen as we are checking for avail. ram at getAvailableRam()`
-				);
-				await this.addTask(task);
+				//Not enough RAM to execute even 1 thread for every server
+				this.addTask(task);
 
 				return {
 					status: "failed",
@@ -331,7 +336,7 @@ export class ServerManager {
 	}
 
 	refreshRemoteServers() {
-		this.remoteServers = getRemoteServers(this.ns);
+		this.remoteServers = [...getRemoteServers(this.ns), ...getRootedServers(this.ns)];
 
 		return this.remoteServers;
 	}
@@ -346,6 +351,8 @@ export class ServerManager {
 	}
 
 	async dispatch(task: Task) {
+		//console.log("dispatched task: " + JSON.stringify(task, null, 2));
+		//console.log("task queue: " + JSON.stringify(this.taskQueue, null, 2));
 		while (this.processingQueue) {
 			await sleep(100);
 		}
@@ -354,7 +361,7 @@ export class ServerManager {
 		return true;
 	}
 
-	getScriptSizes() {
+	public getScriptSizes() {
 		const result = {
 			hack: this.ns.getScriptRam("/payloads/hack.js"),
 			weaken: this.ns.getScriptRam("/payloads/weaken.js"),
@@ -362,6 +369,7 @@ export class ServerManager {
 		};
 
 		this.scriptSize = result;
+		return result;
 	}
 
 	async copyPayloads() {

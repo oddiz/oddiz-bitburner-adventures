@@ -5,7 +5,7 @@ const DESIRED_PARALLEL_SCRIPTS = 4;
 export async function main(ns) {
 	ns.tail();
 
-	const targets = await (await getRootedServers(ns)).map((server) => server.hostname);
+	const targets = await (getRootedServers(ns)).map((server) => server.hostname);
 	ns.print(targets);
 
 	while (true) {

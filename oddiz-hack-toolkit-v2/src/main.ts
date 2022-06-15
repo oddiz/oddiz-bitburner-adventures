@@ -14,5 +14,6 @@ export async function main(ns: NS) {
 	const threadManager = new ThreadManager(ns, serverManager);
 	await threadManager.init();
 
+	await serverManager.startListening();
 	while (true) await ns.asleep(100000);
 }

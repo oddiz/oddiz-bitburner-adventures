@@ -6,7 +6,7 @@ export async function main(ns) {
 }
 
 export async function killAll(ns) {
-	const targets = await (await getRootedServers(ns)).map((server) => server.hostname);
+	const targets = await (getRootedServers(ns)).map((server) => server.hostname);
 
 	const remoteServers = ns.getPurchasedServers();
 

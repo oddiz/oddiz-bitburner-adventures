@@ -1,18 +1,27 @@
 //gets all servers found with getServers.js
 
-const rootOptions = ["brutessh", "ftpcrack", "relaysmtp"];
+const rootOptions = ["brutessh"]; //, "ftpcrack", "relaysmtp"];
 
 import { getAllServers } from "/utils/getAllServers";
 import { NS, Server } from "typings/Bitburner";
+import { notStrictEqual } from "assert";
 
 const rootedServers: Server[] = [];
+
+export async function main(ns: NS) {
+	ns.tail();
+
+	const result = getRootedServers(ns);
+
+	ns.print("Found servers: " + JSON.stringify(result, null, 2));
+}
 
 /**
  * Hacks and returs all rooted servers suitable for players hacking level.
  * @param {import("../../..").NS} ns */
-export async function getRootedServers(ns: NS) {
+export function getRootedServers(ns: NS) {
 	try {
-		const allServers = await getAllServers(ns);
+		const allServers = getAllServers(ns);
 		ns.disableLog("ALL");
 		const targets = allServers;
 
@@ -42,7 +51,7 @@ export async function getRootedServers(ns: NS) {
 
 			if (playerHackingLevel < ns.getServerRequiredHackingLevel(target)) {
 				//ns.print(target, " is not in your hacking level!");
-				// continue;
+				continue;
 			}
 			let reqPorts = ns.getServerNumPortsRequired(target);
 
@@ -61,7 +70,7 @@ export async function getRootedServers(ns: NS) {
 			ns.nuke(target);
 
 			if (ns.hasRootAccess(target)) {
-				//ns.print(target, " is now rooted!");
+				ns.print(target, " is now rooted!");
 				if (target !== "home" || !isDuplicate(target)) {
 					rootedServers.push(serverInfo);
 				}
@@ -114,11 +123,9 @@ export async function getRootedServers(ns: NS) {
 		//sort rooted servers by max money
 		const sortedRootedServers = rootedServers
 			.sort((a, b) => b.moneyMax - a.moneyMax)
-			.filter((server) => server.hackDifficulty < playerHackingLevel)
 			.filter((server) => server.moneyMax > 0);
 
-		await ns.write("/logs/rooted_servers.js", `export const rootedServers =  `, "w");
-		await ns.write("/logs/rooted_servers.js", JSON.stringify(sortedRootedServers), "a");
+		//ns.write("/logs/rooted_servers.js", JSON.stringify(sortedRootedServers), "w");
 
 		return sortedRootedServers;
 	} catch (error) {
