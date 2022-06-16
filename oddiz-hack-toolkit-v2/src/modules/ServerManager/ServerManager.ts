@@ -1,16 +1,28 @@
 import { NS, Server } from "typings/Bitburner";
+import { commandCanRun } from "/modules/ServerManager/commandCanRun";
+import { ServerMaintainer } from "/modules/ServerMaintainer/ServerMaintainer";
+import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { getRemoteServers } from "/utils/getRemoteServers";
-import { getRootedServers } from "/utils/getRootedServers";
+
 import { killAll } from "/utils/killAll";
 import { sleep } from "/utils/sleep";
 
 const PROCESS_TASK_TICKRATE = 1000;
 
+export interface RemotesWithRamInfo {
+	servers: ServerRamInfo[];
+	totalAvailableRam: number;
+}
 export interface Task {
 	target: string;
 	op: "weaken" | "grow" | "hack";
 	threads: number;
 	executeTime: number;
+}
+export interface DispatchCommand {
+	type: "trio" | "readify";
+	tasks: Task[];
+	latestExecTime: number;
 }
 
 interface ServerRamInfo {
@@ -25,7 +37,7 @@ interface UsedServer {
 }
 
 interface ExecuteTaskReturn {
-	status: "success" | "failed";
+	status: "success" | "failed" | "terminate";
 	task: Task;
 	data: {
 		remainingThreads?: number;
@@ -37,33 +49,31 @@ interface ExecuteTaskReturn {
 export class ServerManager {
 	public remoteServers: Server[];
 	public totalRam: number;
-	private taskQueue: Task[];
-	private scriptSize: {
+	private commandQueue: DispatchCommand[];
+	private scriptSizes: {
 		hack: number;
 		weaken: number;
 		grow: number;
 	};
 	private processingQueue: boolean;
+	serverMaintainer: ServerMaintainer;
 
 	constructor(private ns: NS) {
 		this.ns = ns;
+
+		this.serverMaintainer = new ServerMaintainer(this.ns, this);
 		this.remoteServers = [];
 		this.totalRam = 0;
 
-		this.scriptSize = {
-			hack: 0,
-			weaken: 0,
-			grow: 0,
-		};
+		this.scriptSizes = getPayloadSizes(this.ns);
 
-		this.taskQueue = [];
+		this.commandQueue = [];
 		this.processingQueue = false;
 	}
 	async init() {
 		this.ns.disableLog("scp");
 		this.log("Starting...");
 		this.log("Getting script sizes...");
-		this.getScriptSizes();
 
 		this.log("Getting remote servers...");
 		this.refreshRemoteServers();
@@ -73,6 +83,10 @@ export class ServerManager {
 
 		this.log("Killing all processes on all servers...");
 		await killAll(this.ns);
+
+		this.log("Starting server maintainer...");
+		this.serverMaintainer.init();
+
 		this.totalRam = await this.getTotalRam();
 		//this.log(`Total RAM: ${this.totalRam}GB`);
 
@@ -81,213 +95,159 @@ export class ServerManager {
 
 	async startListening() {
 		this.log("Listening for tasks...");
-		await this.processTasks();
+		await this.processCommands();
 	}
-
-	async processTasks() {
-		const LAGGING_TASKS_DIR = "/logs/lagging_tasks.txt";
+	clearCommandQueue() {
+		this.commandQueue = [];
+	}
+	processCommands() {
 		this.processingQueue = false;
 
-		while (this.ns.scriptRunning("main.js", "home")) {
-			try {
-				if (this.taskQueue.length === 0) {
-					//await this.ns.write(LAGGING_TASKS_DIR, "", "w");
-					await sleep(250);
+		try {
+			if (this.commandQueue.length === 0) {
+				return false;
+			}
+			this.processingQueue = true;
+			const boundExecuteTask = executeTask.bind(this);
+
+			for (const command of [...this.commandQueue]) {
+				const now = new Date().getTime();
+				if (now > command.latestExecTime) {
+					console.log("Too late to execute command! Server manager is lagging!");
+
+					console.log("Difference: " + (now - command.latestExecTime));
 					continue;
 				}
-				this.processingQueue = true;
 
-				//this.log(JSON.stringify(this.taskQueue));
-				const nextTask = this.taskQueue.shift();
-				if (!nextTask?.threads) {
+				const serversWithRamInfo = this.getAvailableRam();
+
+				//console.log("needed ram: " + neededRam, "total ram: " + availableRam.totalAvailableRam);
+
+				if (!commandCanRun(this.ns, command, serversWithRamInfo) && command.type === "trio") {
+					console.log("Not enough RAM to execute command! Discarding...");
+
 					continue;
 				}
-				if (!nextTask) continue;
-				this.processingQueue = false;
+				const execResults: ExecuteTaskReturn[] = [];
+				for (const task of command.tasks) {
+					const execResult = boundExecuteTask(task);
 
-				const boundExec = executeTask.bind(this);
-				boundExec(nextTask);
-
-				await sleep(100);
-			} catch (error) {
-				this.log("Error in processTasks loop: " + error);
-			}
-		}
-		/* 
-
-		const intervalId = setInterval(loopFunction, 500);
-
-		async function loopFunction() {
-			try {
-				if (!self.ns.scriptRunning("main.js", "home")) {
-					killInterval();
+					execResults.push(execResult);
 				}
-				if (self.taskQueue.length === 0) {
-					//await self.ns.write(LAGGING_TASKS_DIR, "", "w");
 
-					return;
+				if (execResults.every((result) => result.status === "success")) {
+				} else {
+					console.log("Command failed! Command: " + JSON.stringify(command, null, 2));
+					console.log("Command tasks results: " + JSON.stringify(execResults, null, 2));
 				}
-				self.processingQueue = true;
-				self.taskQueue.sort((a, b) => a.executeTime - b.executeTime);
-				//self.log(JSON.stringify(self.taskQueue));
-				const nextTask = self.taskQueue.shift();
-				if (!nextTask) return;
-				self.processingQueue = false;
 
-				const boundExec = executeTask.bind(self);
-				await boundExec(nextTask);
-			} catch (error) {
-				self.log("Error in processTasks loop: " + error);
+				//processing finished clear the queue
+				this.clearCommandQueue();
 			}
-		}
-        function killInterval() {
-            clearInterval(intervalId);
-        }
+			this.processingQueue = false;
+		} catch (error) {
+			if (this.ns.scriptRunning("main.js", "home")) console.log("Error in processTasks loop: " + error);
 
-        */
+			return false;
+		}
 
 		function executeTask(this: ServerManager, task: Task): ExecuteTaskReturn {
-			//get ram status
-			const ramInfo = this.getAvailableRam();
+			try {
+				//get ram status
+				const ramInfo = this.getAvailableRam();
+				const scriptSize = this.scriptSizes[task.op];
 
-			//calculate how many threads needed for the task
-			const scriptSize =
-				task.op === "hack"
-					? this.scriptSize.hack
-					: task.op === "weaken"
-					? this.scriptSize.weaken
-					: this.scriptSize.grow;
-			const ramNeeded = task.threads * scriptSize;
+				const activeTask = task;
+				const usedServers: UsedServer[] = [];
+				let taskExecuted = false;
 
-			//check if we have enough ram
+				let threadsToLaunch = activeTask.threads;
 
-			if (ramInfo.totalAvailableRam < scriptSize) {
-				//this.log(`Not enough RAM to execute even 1 thread. I can't keep up with this workload!!`);
+				for (const server of ramInfo.servers) {
+					const serverAvailableRam = server.availableRam;
+					const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
 
-				this.addTask(task);
-				//this.ns.write(LAGGING_TASKS_DIR, JSON.stringify(this.taskQueue) + " (NOT EXECUTED AT ALL)" + "\n", "a");
-				return {
-					status: "failed",
-					task: task,
-					data: {
-						message: "Not enough RAM to execute even 1 thread. I can't keep up with this workload!!",
-					},
-				};
-			}
+					if (serverThreadCap < 1) {
+						//we don't have enough ram for even 1 task in server, shouldn't happen
 
-			if (ramInfo.totalAvailableRam < ramNeeded) {
-				//this.log(
-				//	`Not enough RAM to execute task. Needed: ${ramNeeded}GB, Available: ${ramInfo.//totalAvailableRam}GB`
-				//);
-			}
+						console.log("we don't have enough ram for even 1 task in server, this shouldn't happen");
+						continue;
+					}
 
-			const activeTask = task;
-			const usedServers: UsedServer[] = [];
-			let taskExecuted = false;
+					if (!this.ns.getServer(task.target)) {
+						console.log("Tried to execute in a non existing server! Server name: " + task.target);
 
-			for (const server of ramInfo.servers) {
-				const serverAvailableRam =
-					this.ns.getServerMaxRam(server.hostname) - this.ns.getServerUsedRam(server.hostname);
-				const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
-
-				if (serverThreadCap < 1) {
-					//we don't have enough ram for even 1 task in server
-					continue;
-				}
-
-				let execResult;
-				try {
-					execResult = this.ns.exec(
+						continue;
+					}
+					const threadsToLaunch = Math.min(serverThreadCap, activeTask.threads);
+					const execResult = this.ns.exec(
 						`/payloads/${activeTask.op}.js`,
 						server.hostname,
-						Math.min(serverThreadCap, activeTask.threads),
+						threadsToLaunch,
 						activeTask.target,
 						activeTask.executeTime
 					);
-				} catch (error) {
-					this.log("Error: " + error);
-					continue;
-				}
 
-				if (execResult) {
-					taskExecuted = true;
-					usedServers.push({
-						hostname: server.hostname,
-						ramUsed: scriptSize * task.threads,
-						threadsLaunched: Math.min(serverThreadCap, task.threads),
-					});
-					const remainingThreads = activeTask.threads - serverThreadCap;
-
-					if (remainingThreads < 1) {
-						//task completed
-						return {
-							status: "success",
-							task: task,
-							data: {
-								remainingThreads: 0,
-								usedServers: usedServers,
-							},
-						};
+					if (execResult) {
+						usedServers.push({
+							hostname: server.hostname,
+							ramUsed: scriptSize * task.threads,
+							threadsLaunched: threadsToLaunch,
+						});
+						taskExecuted = true;
+						break;
 					} else {
-						//task partially completed so update remaining threads
-
-						activeTask.threads = remainingThreads;
+						console.warn("Payload failed to execute");
+						console.warn(
+							"Command: " +
+								`exec(${`/payloads/${activeTask.op}.js`}, ${server.hostname}, ${Math.min(
+									serverThreadCap,
+									activeTask.threads
+								)}, ${activeTask.target}, ${activeTask.executeTime} )`
+						);
+						console.warn("Task:\n" + JSON.stringify(activeTask));
+						console.warn("Server RAM Info: " + JSON.stringify(server));
+						console.warn("Server thread Capacity: " + serverThreadCap);
 						continue;
 					}
-				} else {
-					this.log("Payload failed to execute");
-					this.log(
-						"Command: " +
-							`exec(${`/payloads/${activeTask.op}.js`}, ${server.hostname}, ${Math.min(
-								serverThreadCap,
-								activeTask.threads
-							)}, ${activeTask.target}, ${activeTask.executeTime} )`
-					);
-					this.log("Task:\n" + JSON.stringify(activeTask));
-					this.log("Server RAM Info: " + JSON.stringify(server));
-					this.log("Server thread Capacity: " + serverThreadCap);
+				}
 
-					this.addTask(activeTask);
+				//if we reach here that means we partially executed it
+
+				if (taskExecuted) {
+					//Task executed successfully
 
 					return {
-						status: "failed",
+						status: "success",
 						task: task,
 						data: {
-							message: "Payload failed to execute on target.",
+							usedServers: usedServers,
 						},
 					};
+				} else {
+					console.log(
+						"Task couldn't find enough RAM to execute! Shouldn't happen since we check for ram before executing a command!"
+					);
+
+					const response: ExecuteTaskReturn = {
+						status: "failed",
+						task: activeTask,
+						data: {
+							message: "Task couldn't find enough RAM to execute!",
+						},
+					};
+					console.log(JSON.stringify(response, null, 2));
+
+					return response;
 				}
-			}
-
-			//if we reach here that means we didn't execute the task or partially executed it
-
-			if (taskExecuted) {
-				//this.log("Task partially executed, remaining threads: " + activeTask.threads);
-				//this.log("Adding remaining task back to queue");
-
-				this.addTask(activeTask);
-
-				//maybe could remove the await here?
-				//this.ns.write(LAGGING_TASKS_DIR, JSON.stringify(this.taskQueue) + "\n", "a");
+			} catch (error) {
+				console.log("Error in executeTask: " + JSON.stringify(error, null, 2));
 
 				return {
-					status: "success",
-					task: activeTask,
-					data: {
-						remainingThreads: activeTask.threads,
-						usedServers: usedServers,
-					},
-				};
-			} else {
-				//Not enough RAM to execute even 1 thread for every server
-				this.addTask(task);
-
-				return {
-					status: "failed",
+					status: "terminate",
 					task: task,
 					data: {
-						message:
-							"Not enough RAM to execute even 1 thread for every server. This shouldn't happen as we are checking for avail. ram at getAvailableRam()",
+						message: "Error in executeTask",
 					},
 				};
 			}
@@ -305,10 +265,7 @@ export class ServerManager {
 		return totalRam;
 	}
 
-	getAvailableRam(): {
-		totalAvailableRam: number;
-		servers: ServerRamInfo[];
-	} {
+	getAvailableRam(): RemotesWithRamInfo {
 		const servers = this.refreshRemoteServers();
 
 		const serversWithRamInfo: ServerRamInfo[] = [];
@@ -317,6 +274,11 @@ export class ServerManager {
 			const availableRam = server.maxRam - server.ramUsed;
 
 			if (availableRam < 2) {
+				//ignore the server
+				continue;
+			}
+
+			if (this.serverMaintainer.serverIsMarkedForDelete(server.hostname)) {
 				//ignore the server
 				continue;
 			}
@@ -336,40 +298,51 @@ export class ServerManager {
 	}
 
 	refreshRemoteServers() {
-		this.remoteServers = [...getRemoteServers(this.ns), ...getRootedServers(this.ns)];
+		this.remoteServers = [...getRemoteServers(this.ns)];
 
 		return this.remoteServers;
 	}
 
-	async addTask(task: Task) {
+	async addCommand(command: DispatchCommand) {
+		let counter = 0;
+
 		while (this.processingQueue) {
-			await sleep(100);
+			if (counter > 20) {
+				console.log("Tried to add command but failed after 20 attempts.");
+				break;
+			}
+			await sleep(50 + Math.floor(Math.random() * 50));
 		}
 		this.processingQueue = true;
-		this.taskQueue.push(task);
+		this.commandQueue.push(command);
 		this.processingQueue = false;
-	}
-
-	async dispatch(task: Task) {
-		//console.log("dispatched task: " + JSON.stringify(task, null, 2));
-		//console.log("task queue: " + JSON.stringify(this.taskQueue, null, 2));
-		while (this.processingQueue) {
-			await sleep(100);
-		}
-		await this.addTask(task);
 
 		return true;
 	}
+	async dispatch(command: DispatchCommand) {
+		const now = new Date().getTime();
+		const commandInvalid = command.tasks.some((task) => task.threads < 1);
 
-	public getScriptSizes() {
-		const result = {
-			hack: this.ns.getScriptRam("/payloads/hack.js"),
-			weaken: this.ns.getScriptRam("/payloads/weaken.js"),
-			grow: this.ns.getScriptRam("/payloads/grow.js"),
-		};
+		if (commandInvalid) {
+			console.log("Command invalid because some task(s) have no threads! " + JSON.stringify(command));
+			return false;
+		}
+		if (now > command.latestExecTime) {
+			//too late to execute this task
+			console.log(
+				"Dispatcher recieved a task that was too late to execute. Thread is lagging!! - " +
+					(now - command.latestExecTime) +
+					" ms"
+			);
 
-		this.scriptSize = result;
-		return result;
+			return false;
+		}
+
+		await this.addCommand(command);
+
+		const processResult = await this.processCommands();
+
+		return processResult;
 	}
 
 	async copyPayloads() {
@@ -383,7 +356,7 @@ export class ServerManager {
 		}
 	}
 	log(message: string) {
-		this.ns.print("[ServerManager] " + message);
+		//this.ns.print("[ServerManager] " + message);
 		console.log("[ServerManager] " + message);
 	}
 }

@@ -1,12 +1,11 @@
 import { NS, Server } from "typings/Bitburner";
 import { getRootedServers } from "/utils/getRootedServers";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
-import { isReadyForLoop, Thread } from "/modules/Thread/Thread";
-import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
-import { getServerHackData } from "/utils/getServerHackData";
-import { sleep } from "/utils/sleep";
+import { Thread } from "/modules/Thread/Thread";
+import { calculateHackLoop } from "/utils/calculateHackLoop";
 
-export type FilteredOutput = HackLoopInfo & {
+const DEFAULT_THREAD_INTERVAL = 2000;
+export type TargetHackLoopData = HackLoopInfo & {
 	moneyPerCpuSecFormatted: string;
 	moneyPerThreadFormatted: string;
 	availableRam: number;
@@ -21,7 +20,8 @@ export class ThreadManager {
 	availableServers: Server[];
 	serverManager: ServerManager;
 	runningThreads: Map<string, RunningThread>;
-	constructor(private ns: NS, ServerManager: ServerManager) {
+	ns: NS;
+	constructor(ns: NS, ServerManager: ServerManager) {
 		this.ns = ns;
 		this.availableServers = [];
 		this.serverManager = ServerManager;
@@ -37,6 +37,7 @@ export class ThreadManager {
 			.catch((err) => this.log(err));
 
 		this.log("Deploying threads...");
+
 		await this.deployThreads();
 	}
 
@@ -48,6 +49,9 @@ export class ThreadManager {
 			const newThread = new Thread(this.ns, this.serverManager, target);
 
 			const runningThread: RunningThread = { thread: newThread, ready: false };
+
+			this.runningThreads.set(target, runningThread);
+
 			newThread.once("ready", async () => {
 				try {
 					const foundRunningThread = this.runningThreads.get(target);
@@ -59,22 +63,23 @@ export class ThreadManager {
 					}
 
 					//check if all threads are ready
-					const allReady = Array.from(this.runningThreads.values()).every((thread) => thread.ready);
+					const allThreadsReady = Array.from(this.runningThreads.values()).every((thread) => thread.ready);
 
-					if (allReady) {
+					if (allThreadsReady) {
 						this.log("All threads are ready for hacking!");
 						const allThreads = Array.from(this.runningThreads.values()).map(
 							(runningThread) => runningThread.thread
 						);
 
+						const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
 						const calcOutput: HackLoopInfo[] = [];
 						for (let i = 1; i < 10; i++) {
 							for (const thread of allThreads) {
 								const result = calculateHackLoop(
 									this.ns,
-									this.serverManager,
-									thread.targetHostname,
-									i * 10
+									thread.targetServer,
+									i * 10,
+									totalAvailableRam
 								);
 
 								if (!result) {
@@ -87,7 +92,6 @@ export class ThreadManager {
 							//this.log(JSON.stringify(calcOutput, null, 4));
 						}
 
-						let filteredOutputs: FilteredOutput[] = [];
 						if (
 							calcOutput.every(
 								(result) =>
@@ -95,48 +99,63 @@ export class ThreadManager {
 									typeof result.moneyPerCpuSec === "number"
 							)
 						) {
-							const availableRam = this.serverManager.getAvailableRam().totalAvailableRam;
-
 							calcOutput
 								.sort((a, b) => b.moneyPerCpuSec - a.moneyPerCpuSec)
-								.sort((a, b) => b.moneyPerThread - a.moneyPerThread)
-								.forEach((output) => {
-									const newOutput = output as FilteredOutput;
-									newOutput.moneyPerCpuSecFormatted = this.ns.nFormat(output.moneyPerCpuSec, "0,0");
-									newOutput.moneyPerThreadFormatted = this.ns.nFormat(output.moneyPerThread, "0,0");
-
-									newOutput.availableRam = availableRam;
-									newOutput.repeatCapacity = Math.floor(availableRam / output.requiredRam);
-
-									newOutput.repeatIntervalSec = output.loopTime / 1000 / newOutput.repeatCapacity;
-
-									filteredOutputs.push(newOutput);
-								});
+								.sort((a, b) => b.moneyPerThread - a.moneyPerThread);
 						}
 
-						await this.ns.write("/logs/hack_loop_data.js", JSON.stringify(filteredOutputs, null, 4), "w");
+						let selectedTarget = [...calcOutput].filter(
+							(output) => output.repeatIntervalSec > DEFAULT_THREAD_INTERVAL / 1000
+						)[0];
 
-						const selectedTarget = filteredOutputs.filter((output) => output.repeatIntervalSec > 5)[0];
-						console.log("Selected Target: " + JSON.stringify(selectedTarget), null, 2);
+						if (!selectedTarget) {
+							function calculateDefaultIntervalPerformance(target: HackLoopInfo) {
+								const performanceLoss = (target.repeatIntervalSec * 1000) / DEFAULT_THREAD_INTERVAL;
+								return target.moneyPerThread * performanceLoss;
+							}
+							const sortedForInterval = [...calcOutput].sort(
+								(a, b) =>
+									calculateDefaultIntervalPerformance(b) - calculateDefaultIntervalPerformance(a)
+							);
+
+							console.warn(
+								"Couldn't find suitable target with given filters. Going for default interval."
+							);
+
+							console.log(
+								"Top 5 for default interval: " + JSON.stringify(sortedForInterval.slice(0, 4), null, 2)
+							);
+							//currently due to cannot finding a suitable target with repet interval > 2
+							//as workaround get most valueable server and default interval to assigned value
+							selectedTarget = [...sortedForInterval][0];
+							selectedTarget.repeatIntervalSec = 2;
+						}
+						/*
+						selectedTarget = [...calcOutput]
+                        .sort((a, b) => a.loopTime - b.loopTime)
+                        .filter((output) => output.hostname === "foodnstuff") //was 5
+                        .filter((output) => output.hackPercentage === 90)[0];
+                        */
+
+						console.log("Selected Target: " + JSON.stringify(selectedTarget, null, 2));
 
 						this.signalThreadToLoop(selectedTarget);
 					}
 				} catch (error) {
-					this.log("Error: " + error);
+					if (this.ns.scriptRunning("main.js", "home")) this.log("Error: " + error);
 				}
 			});
-			this.runningThreads.set(target, runningThread);
 		}
 	}
 
-	signalThreadToLoop(target: FilteredOutput) {
-		const thread = this.runningThreads.get(target.hostname)?.thread;
+	async signalThreadToLoop(targetHackLoopData: HackLoopInfo) {
+		const thread = this.runningThreads.get(targetHackLoopData.hostname)?.thread;
 
 		if (!thread) {
-			this.log("No thread found for: " + target.hostname);
+			this.log("No thread found for: " + targetHackLoopData.hostname);
 			return;
 		}
-		thread.startLoop(target);
+		await thread.initiateOptimalHacking(targetHackLoopData);
 	}
 
 	log(message: string | number) {
@@ -168,69 +187,7 @@ export interface HackLoopInfo {
 	goldenInfo: boolean;
 	opThreads: Ops<number>;
 	opTimes: Ops<number>;
-}
-export function calculateHackLoop(
-	ns: NS,
-	ServerManager: ServerManager,
-	hostname: string,
-	percentage: number
-): HackLoopInfo | null {
-	try {
-		const serverHackData = getServerHackData(ns, hostname);
-		let money = serverHackData.money;
-		if (money === 0) money = 1;
-
-		const safePercentage = percentage > 1 ? percentage : 1;
-		const maxMoney = serverHackData.maxMoney;
-
-		const reqHackThreads = Math.ceil(ns.hackAnalyzeThreads(hostname, money * (safePercentage / 100)));
-		const hackSecIncrease = ns.hackAnalyzeSecurity(reqHackThreads, hostname);
-
-		const reqGrowThreads = Math.ceil(ns.growthAnalyze(hostname, 100 / (100 - safePercentage), 1));
-		const growSecIncrease = ns.growthAnalyzeSecurity(reqGrowThreads, hostname, 1);
-
-		const reqWeakenThreads = Math.ceil(calculateWeakenThreads(hackSecIncrease + growSecIncrease));
-
-		const { hackTime, growTime, weakenTime } = serverHackData;
-
-		const loopTime = Math.max(hackTime, growTime, weakenTime);
-		const totalThreads = reqHackThreads + reqGrowThreads + reqWeakenThreads;
-		const income = money * (safePercentage / 100);
-
-		const scriptSizes = ServerManager.getScriptSizes();
-
-		const reqRam =
-			reqGrowThreads * scriptSizes.grow +
-			reqHackThreads * scriptSizes.hack +
-			reqWeakenThreads * scriptSizes.weaken;
-
-		return {
-			hostname: hostname,
-			hackPercentage: safePercentage,
-			totalThreads: totalThreads,
-			income: income,
-			loopTime: loopTime,
-			requiredRam: reqRam,
-			moneyPerThread: Math.floor(income / totalThreads),
-			moneyPerCpuSec: Math.floor(income / (loopTime / 1000)),
-
-			opThreads: {
-				hack: reqHackThreads,
-				grow: reqGrowThreads,
-				weaken: reqWeakenThreads,
-			},
-
-			opTimes: {
-				hack: hackTime,
-				grow: growTime,
-				weaken: weakenTime,
-			},
-
-			goldenInfo: isReadyForLoop(serverHackData),
-		};
-	} catch (error) {
-		console.log("Error calculating hack loop: " + error);
-		ns.print("Error calculating hack loop: " + error);
-		return null;
-	}
+	moneyPerCpuSecFormatted: string;
+	moneyPerThreadFormatted: string;
+	repeatIntervalSec: number;
 }

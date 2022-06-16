@@ -1,6 +1,6 @@
 //gets all servers found with getServers.js
 
-const rootOptions = ["brutessh"]; //, "ftpcrack", "relaysmtp"];
+const rootOptions = ["brutessh", "ftpcrack", "relaysmtp"];
 
 import { getAllServers } from "/utils/getAllServers";
 import { NS, Server } from "typings/Bitburner";

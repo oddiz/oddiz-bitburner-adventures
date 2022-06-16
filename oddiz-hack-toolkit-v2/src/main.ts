@@ -1,6 +1,6 @@
-import { ThreadManager } from "./modules/ThreadManager/ThreadManager";
+import { ThreadManager } from "/modules/ThreadManager/ThreadManager";
 import { NS } from "typings/Bitburner";
-import { ServerManager } from "./modules/ServerManager/ServerManager";
+import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { sleep } from "/utils/sleep";
 
 export async function main(ns: NS) {
@@ -15,5 +15,5 @@ export async function main(ns: NS) {
 	await threadManager.init();
 
 	await serverManager.startListening();
-	while (true) await ns.asleep(100000);
+	while (true) await ns.asleep(100000000);
 }
