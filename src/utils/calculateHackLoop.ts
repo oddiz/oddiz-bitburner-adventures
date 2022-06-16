@@ -4,6 +4,8 @@ import { numCycleForGrowthByHackAmt } from "/modules/Thread/ThreadHelpers";
 import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { NS, Server } from "/typings/Bitburner";
 
+const RAM_USAGE_RATIO = 0.8;
+
 export function calculateHackLoop(ns: NS, server: Server, percentage: number, totalAvailableRam: number) {
 	try {
 		const serverHackData = getServerHackData(ns, server.hostname);
@@ -36,7 +38,7 @@ export function calculateHackLoop(ns: NS, server: Server, percentage: number, to
 			reqGrowThreads * scriptSizes.grow +
 			reqHackThreads * scriptSizes.hack +
 			reqWeakenThreads * scriptSizes.weaken;
-		const repeatCapacity = Math.floor(totalAvailableRam / reqRam);
+		const repeatCapacity = Math.floor((totalAvailableRam * RAM_USAGE_RATIO) / reqRam);
 		return {
 			hostname: server.hostname,
 			hackPercentage: safePercentage,

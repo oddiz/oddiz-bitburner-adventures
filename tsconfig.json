@@ -1,5 +1,6 @@
 {
 	"compilerOptions": {
+        "jsx": "react",
 		"target": "ES2021",
 		"module": "ESNext",
 		"rootDir": "src/",
@@ -17,6 +18,7 @@
 		"strictPropertyInitialization": true,
 		"strictBindCallApply": true,
 		"allowJs": true,
-		"allowSyntheticDefaultImports": true
+		"allowSyntheticDefaultImports": true,
+        "esModuleInterop": true
 	}
 }

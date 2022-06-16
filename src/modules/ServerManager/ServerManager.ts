@@ -161,8 +161,6 @@ export class ServerManager {
 				const usedServers: UsedServer[] = [];
 				let taskExecuted = false;
 
-				let threadsToLaunch = activeTask.threads;
-
 				for (const server of ramInfo.servers) {
 					const serverAvailableRam = server.availableRam;
 					const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
@@ -174,18 +172,26 @@ export class ServerManager {
 						continue;
 					}
 
+					if (serverThreadCap < activeTask.threads) {
+						console.warn(
+							"Server doesn't have enough ram to launch all threads! This shouldn't happen Server: " +
+								server.hostname
+						);
+					}
+
 					if (!this.ns.getServer(task.target)) {
 						console.log("Tried to execute in a non existing server! Server name: " + task.target);
 
 						continue;
 					}
-					const threadsToLaunch = Math.min(serverThreadCap, activeTask.threads);
+					const threadsToLaunch = activeTask.threads;
 					const execResult = this.ns.exec(
 						`/payloads/${activeTask.op}.js`,
 						server.hostname,
 						threadsToLaunch,
 						activeTask.target,
-						activeTask.executeTime
+						activeTask.executeTime,
+						new Date().getTime()
 					);
 
 					if (execResult) {

@@ -10,6 +10,13 @@ import { calculateHackLoop } from "/utils/calculateHackLoop";
 /**
  * Runs for every server that we want to hack.
  */
+
+interface MemoryServer {
+	[percentage: number]: HackLoopInfo;
+}
+interface LoopDataMemory {
+	[hostname: string]: MemoryServer;
+}
 export class Thread extends EventEmitter {
 	targetHostname: string;
 	targetServer: Server;
@@ -65,13 +72,17 @@ export class Thread extends EventEmitter {
 			return;
 		}
 
-		const memoryHackLoopInfo = await this.getLoopDataFromMemory(hackLoopData.hackPercentage);
-		if (memoryHackLoopInfo) {
-			console.log(`Already have data for this hack percentage`);
+		const hackLoopMemory = await this.getLoopDataFromMemory();
+		if (hackLoopMemory) {
+			const serverHackLoopData = hackLoopMemory?.[this.targetHostname]?.[String(hackLoopData.hackPercentage)];
 
-			this.startLoop(memoryHackLoopInfo);
+			if (serverHackLoopData) {
+				console.log(`Already have data for this hack percentage`);
 
-			return;
+				this.startLoop(serverHackLoopData);
+
+				return;
+			}
 		}
 
 		const hackData = getServerHackData(this.ns, this.targetHostname);
@@ -97,7 +108,12 @@ export class Thread extends EventEmitter {
 
 			const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
 			const targetSv = this.ns.getServer(this.targetHostname);
-			const newHackData = calculateHackLoop(this.ns, targetSv, hackLoopData.hackPercentage, totalAvailableRam);
+			const newHackData = calculateHackLoop(
+				this.ns,
+				targetSv,
+				hackLoopData.hackPercentage,
+				totalAvailableRam * 0.8
+			);
 
 			if (!newHackData) {
 				console.log("Hack after thread is ready complete but new hack data could not be acquired.");
@@ -138,35 +154,33 @@ export class Thread extends EventEmitter {
 
 	async saveLoopDataToMemory(hackLoopData: HackLoopInfo) {
 		try {
-			let memory = await this.ns.read("/modules/Thread/hackLoopMemory.js");
+			let memory = await this.getLoopDataFromMemory();
 
-			if (memory === "") {
+			if (!memory) {
 				memory = {};
-			} else {
-				memory = JSON.parse(memory);
 			}
 
-			const targetLoops = memory?.[this.targetHostname] || {};
+			const loopTarget = memory?.[hackLoopData.hostname] || {};
 
-			targetLoops[hackLoopData.hackPercentage] = hackLoopData;
-			memory[this.targetHostname] = targetLoops;
+			loopTarget[String(hackLoopData.hackPercentage)] = hackLoopData;
+			memory[hackLoopData.hostname] = loopTarget;
 
-			await this.ns.write("/modules/Thread/hackLoopMemory.js", JSON.stringify(memory, null, 2), "w");
+			await this.ns.write("hackLoopMemory.js", JSON.stringify(memory, null, 2), "w");
 		} catch (error) {
 			console.warn("Failed to save the golden loop info to memory");
 			console.log(error);
 		}
 	}
 
-	async getLoopDataFromMemory(percentage: number): Promise<HackLoopInfo | null> {
+	async getLoopDataFromMemory(): Promise<LoopDataMemory | null> {
 		try {
-			let memory = await this.ns.read("/modules/Thread/hackLoopMemory.js");
+			let memory = await this.ns.read("hackLoopMemory.js");
 			const parsedMemory = JSON.parse(memory);
 			if (!parsedMemory) {
 				return null;
 			}
 
-			return parsedMemory?.[this.targetHostname]?.[percentage];
+			return parsedMemory?.[this.targetHostname];
 		} catch (error) {
 			return null;
 		}
