@@ -1,7 +1,7 @@
 {
-  "name": "v2",
-  "version": "1.0.0",
-  "description": "oddiz's bitburner scripts",
+  "name": "oddiz-bitburner-adventures",
+  "version": "2.0.0",
+  "description": "Scripts I made for game called Bitburner.",
   "main": "main.ts",
   "author": "oddiz",
   "license": "MIT",
