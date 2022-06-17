@@ -1,24 +1,25 @@
 {
-	"compilerOptions": {
+    "compilerOptions": {
         "jsx": "react",
-		"target": "ES2021",
-		"module": "ESNext",
-		"rootDir": "src/",
-		"baseUrl": "src/",
-		"paths": {
-			"/typings/*": ["typings/*"],
-			"/utils/*": ["utils/*"],
-			"/modules/*": ["modules/*"],
-			"/payloads/*": ["payloads/*"],
-			"/vendor/*": ["vendor/*"]
-		},
-		"outDir": "build/",
-		"moduleResolution": "node",
-		"strictNullChecks": true,
-		"strictPropertyInitialization": true,
-		"strictBindCallApply": true,
-		"allowJs": true,
-		"allowSyntheticDefaultImports": true,
+        "target": "ES2021",
+        "module": "ESNext",
+        "rootDir": "src/",
+        "baseUrl": "src/",
+        "paths": {
+            "/typings/*": ["typings/*"],
+            "/utils/*": ["utils/*"],
+            "/modules/*": ["modules/*"],
+            "/payloads/*": ["payloads/*"],
+            "/vendor/*": ["vendor/*"],
+            "/ui/*": ["ui/*"]
+        },
+        "outDir": "build/",
+        "moduleResolution": "node",
+        "strictNullChecks": true,
+        "strictPropertyInitialization": true,
+        "strictBindCallApply": true,
+        "allowJs": true,
+        "allowSyntheticDefaultImports": true,
         "esModuleInterop": true
-	}
+    }
 }

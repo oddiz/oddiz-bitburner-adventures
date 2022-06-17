@@ -1,16 +1,19 @@
+import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { NS } from "/typings/Bitburner";
 import { getRootedServers } from "/utils/getRootedServers";
 
-/** @param {import("../..").NS} ns */
-export async function main(ns) {
-	await killAll(ns);
+export async function main(ns: NS) {
+    await killAll(ns);
 }
 
-export async function killAll(ns) {
-	const targets = await (getRootedServers(ns)).map((server) => server.hostname);
+export async function killAll(ns: NS) {
+    const targets = await getRootedServers(ns).map((server) => server.hostname);
 
-	const remoteServers = ns.getPurchasedServers();
+    const remoteServers = ns.getPurchasedServers();
 
-	for (const tar of [...targets, ...remoteServers]) {
-		ns.killall(tar);
-	}
+    for (const target of [...targets, ...remoteServers]) {
+        ns.killall(target);
+    }
+
+    ns.scriptKill(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home");
 }

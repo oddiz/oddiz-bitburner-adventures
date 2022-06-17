@@ -3,165 +3,129 @@ import { getRootedServers } from "/utils/getRootedServers";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { Thread } from "/modules/Thread/Thread";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
+import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { selectBestServerToHack } from "/modules/ThreadManager/selectBestServerToHack";
 
-const DEFAULT_THREAD_INTERVAL = 2000;
 export type TargetHackLoopData = HackLoopInfo & {
-	moneyPerCpuSecFormatted: string;
-	moneyPerThreadFormatted: string;
-	availableRam: number;
-	repeatCapacity: number;
-	repeatIntervalSec: number;
+    moneyPerCpuSecFormatted: string;
+    moneyPerThreadFormatted: string;
+    availableRam: number;
+    repeatCapacity: number;
+    repeatIntervalSec: number;
 };
 type RunningThread = {
-	thread: Thread;
-	ready: boolean;
+    thread: Thread;
+    ready: boolean;
 };
 export class ThreadManager {
-	availableServers: Server[];
-	serverManager: ServerManager;
-	runningThreads: Map<string, RunningThread>;
-	ns: NS;
-	constructor(ns: NS, ServerManager: ServerManager) {
-		this.ns = ns;
-		this.availableServers = [];
-		this.serverManager = ServerManager;
-		this.runningThreads = new Map();
-	}
+    availableServers: Server[];
+    serverManager: ServerManager;
+    runningThreads: Map<string, RunningThread>;
+    ns: NS;
+    constructor(ns: NS, ServerManager: ServerManager) {
+        this.ns = ns;
+        this.availableServers = [];
+        this.serverManager = ServerManager;
+        this.runningThreads = new Map();
+    }
 
-	async init() {
-		this.log("Starting...");
-		this.availableServers = getRootedServers(this.ns);
+    //TODO: ability to spawn multiple trio loops for different servers at the same time
+    //TODO: better and safer way to check command against RAM - dry run first and see if it works
 
-		await this.ns
-			.write("/logs/hackable_servers.txt", JSON.stringify(this.availableServers, null, 4), "w")
-			.catch((err) => this.log(err));
+    async init() {
+        this.log("Starting...");
+        this.availableServers = getRootedServers(this.ns);
 
-		this.log("Deploying threads...");
+        await this.ns
+            .write("/logs/hackable_servers.txt", JSON.stringify(this.availableServers, null, 4), "w")
+            .catch((err) => this.log(err));
 
-		await this.deployThreads();
-	}
+        this.log("Deploying threads...");
 
-	async deployThreads() {
-		const targets: string[] = getRootedServers(this.ns).map((server) => server.hostname);
+        await this.deployThreads();
+    }
 
-		//const targets = ["iron-gym", "foodnstuff"];
-		for (const target of targets) {
-			const newThread = new Thread(this.ns, this.serverManager, target);
+    async deployThreads() {
+        const targets: string[] = getRootedServers(this.ns).map((server) => server.hostname);
 
-			const runningThread: RunningThread = { thread: newThread, ready: false };
+        //const targets = ["iron-gym", "foodnstuff"];
+        for (const target of targets) {
+            const newThread = new Thread(this.ns, this.serverManager, target);
 
-			this.runningThreads.set(target, runningThread);
+            const runningThread: RunningThread = { thread: newThread, ready: false };
 
-			newThread.once("ready", async () => {
-				try {
-					const foundRunningThread = this.runningThreads.get(target);
+            this.runningThreads.set(target, runningThread);
 
-					if (foundRunningThread) {
-						foundRunningThread.ready = true;
+            newThread.once("ready", async () => {
+                try {
+                    const foundRunningThread = this.runningThreads.get(target);
 
-						this.runningThreads.set(target, foundRunningThread);
-					}
+                    if (foundRunningThread) {
+                        foundRunningThread.ready = true;
 
-					//check if all threads are ready
-					const allThreadsReady = Array.from(this.runningThreads.values()).every((thread) => thread.ready);
+                        this.runningThreads.set(target, foundRunningThread);
+                    }
 
-					if (allThreadsReady) {
-						this.log("All threads are ready for hacking!");
-						const allThreads = Array.from(this.runningThreads.values()).map(
-							(runningThread) => runningThread.thread
-						);
+                    //check if all threads are ready
+                    const allThreadsReady = Array.from(this.runningThreads.values()).every((thread) => thread.ready);
 
-						const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
-						const calcOutput: HackLoopInfo[] = [];
-						for (let i = 1; i < 10; i++) {
-							for (const thread of allThreads) {
-								const result = calculateHackLoop(
-									this.ns,
-									thread.targetServer,
-									i * 10,
-									totalAvailableRam
-								);
+                    if (allThreadsReady) {
+                        this.log("All threads are ready for hacking!");
 
-								if (!result) {
-									this.log("No result found for thread: " + thread.targetHostname);
-									continue;
-								}
+                        const allThreads = Array.from(this.runningThreads.values()).map(
+                            (runningThread) => runningThread.thread
+                        );
 
-								calcOutput.push(result);
-							}
-							//this.log(JSON.stringify(calcOutput, null, 4));
-						}
+                        const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
+                        const calculatedServerLoopInfos: HackLoopInfo[] = [];
+                        for (let i = 1; i < 12; i++) {
+                            for (const thread of allThreads) {
+                                const result = calculateHackLoop(
+                                    this.ns,
+                                    thread.targetServer,
+                                    i * 9,
+                                    totalAvailableRam
+                                );
 
-						if (
-							calcOutput.every(
-								(result) =>
-									typeof result.moneyPerThread === "number" &&
-									typeof result.moneyPerCpuSec === "number"
-							)
-						) {
-							calcOutput
-								.sort((a, b) => b.moneyPerCpuSec - a.moneyPerCpuSec)
-								.sort((a, b) => b.moneyPerThread - a.moneyPerThread);
-						}
+                                if (!result) {
+                                    this.log("No result found for thread: " + thread.targetHostname);
+                                    continue;
+                                }
 
-						let selectedTarget = [...calcOutput].filter(
-							(output) => output.repeatIntervalSec > DEFAULT_THREAD_INTERVAL / 1000
-						)[0];
+                                calculatedServerLoopInfos.push(result);
+                            }
+                            //this.log(JSON.stringify(calcOutput, null, 4));
+                        }
 
-						if (!selectedTarget) {
-							function calculateDefaultIntervalPerformance(target: HackLoopInfo) {
-								const performanceLoss = (target.repeatIntervalSec * 1000) / DEFAULT_THREAD_INTERVAL;
-								return target.moneyPerThread * performanceLoss;
-							}
-							const sortedForInterval = [...calcOutput].sort(
-								(a, b) =>
-									calculateDefaultIntervalPerformance(b) - calculateDefaultIntervalPerformance(a)
-							);
+                        const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos);
 
-							console.warn(
-								"Couldn't find suitable target with given filters. Going for default interval."
-							);
+                        if (!selectedTargetLoopInfo) throw new Error("No target found even with default interval!");
 
-							console.log(
-								"Top 5 for default interval: " + JSON.stringify(sortedForInterval.slice(0, 4), null, 2)
-							);
-							//currently due to cannot finding a suitable target with repet interval > 2
-							//as workaround get most valueable server and default interval to assigned value
-							selectedTarget = [...sortedForInterval][0];
-							selectedTarget.repeatIntervalSec = 2;
-						}
-						/*
-						selectedTarget = [...calcOutput]
-                        .sort((a, b) => a.loopTime - b.loopTime)
-                        .filter((output) => output.hostname === "foodnstuff") //was 5
-                        .filter((output) => output.hackPercentage === 90)[0];
-                        */
+                        console.log("Selected Target: " + JSON.stringify(selectedTargetLoopInfo, null, 2));
 
-						console.log("Selected Target: " + JSON.stringify(selectedTarget, null, 2));
+                        this.signalThreadToLoop(selectedTargetLoopInfo);
+                    }
+                } catch (error) {
+                    if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) this.log("Error: " + error);
+                }
+            });
+        }
+    }
 
-						this.signalThreadToLoop(selectedTarget);
-					}
-				} catch (error) {
-					if (this.ns.scriptRunning("main.js", "home")) this.log("Error: " + error);
-				}
-			});
-		}
-	}
+    async signalThreadToLoop(targetHackLoopData: HackLoopInfo) {
+        const thread = this.runningThreads.get(targetHackLoopData.hostname)?.thread;
 
-	async signalThreadToLoop(targetHackLoopData: HackLoopInfo) {
-		const thread = this.runningThreads.get(targetHackLoopData.hostname)?.thread;
+        if (!thread) {
+            this.log("No thread found for: " + targetHackLoopData.hostname);
+            return;
+        }
+        await thread.initiateOptimalHacking(targetHackLoopData);
+    }
 
-		if (!thread) {
-			this.log("No thread found for: " + targetHackLoopData.hostname);
-			return;
-		}
-		await thread.initiateOptimalHacking(targetHackLoopData);
-	}
-
-	log(message: string | number) {
-		this.ns.print("[ThreadManager] " + message);
-		console.log(message);
-	}
+    log(message: string | number) {
+        this.ns.print("[ThreadManager] " + message);
+        console.log(message);
+    }
 }
 /**
  * Calculates the amount of thread to hack for specified percentage of server's current money.
@@ -173,21 +137,21 @@ export class ThreadManager {
  */
 
 interface Ops<E> {
-	[key: string]: E;
+    [key: string]: E;
 }
 export interface HackLoopInfo {
-	hostname: string;
-	hackPercentage: number;
-	totalThreads: number;
-	income: number;
-	loopTime: number;
-	requiredRam: number;
-	moneyPerThread: number;
-	moneyPerCpuSec: number;
-	goldenInfo: boolean;
-	opThreads: Ops<number>;
-	opTimes: Ops<number>;
-	moneyPerCpuSecFormatted: string;
-	moneyPerThreadFormatted: string;
-	repeatIntervalSec: number;
+    hostname: string;
+    hackPercentage: number;
+    totalThreads: number;
+    income: number;
+    loopTime: number;
+    requiredRam: number;
+    moneyPerThread: number;
+    moneyPerCpuSec: number;
+    goldenInfo: boolean;
+    opThreads: Ops<number>;
+    opTimes: Ops<number>;
+    moneyPerCpuSecFormatted: string;
+    moneyPerThreadFormatted: string;
+    repeatIntervalSec: number;
 }
