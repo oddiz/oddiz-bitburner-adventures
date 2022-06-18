@@ -1,6 +1,8 @@
 build/
 public/
 
+notes.md
+
 
 # yarn v2
 yarn.lock

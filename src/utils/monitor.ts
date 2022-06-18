@@ -1,8 +1,7 @@
 import { MONITORJS_REFRESH_INTERVAL } from "/utils/constants";
 import { NS } from "/typings/Bitburner";
 
-/** @param {import("../..").NS} ns */
-export async function main(ns) {
+export async function main(ns: NS) {
     const flags = ns.flags([
         ["refreshrate", MONITORJS_REFRESH_INTERVAL],
         ["help", false],
@@ -18,9 +17,9 @@ export async function main(ns) {
     ns.tail();
     ns.disableLog("ALL");
     // eslint-disable-next-line no-constant-condition
-    while (true) {
+    while (ns.scriptRunning("monitor.js", "home")) {
         const server = flags._[0];
-        ns.clearLog(server);
+        ns.clearLog();
 
         logServerDetails(ns, server);
 

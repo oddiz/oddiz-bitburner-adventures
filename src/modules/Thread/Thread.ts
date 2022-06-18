@@ -42,7 +42,6 @@ export class Thread extends EventEmitter {
 
     run(): void {
         try {
-            this.ns.tail();
             //this.ns.print("Running Thread for " + this.targetServer.organizationName);
             this.targetServerHackData = getServerHackData(this.ns, this.targetHostname);
             if (!this.targetServerHackData) {
