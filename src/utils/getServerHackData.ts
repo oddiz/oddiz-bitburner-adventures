@@ -1,3 +1,5 @@
+import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
+import { ceilNumberToDecimal } from "/utils/ceilNumberToDecimal";
 import { NS } from "/typings/Bitburner";
 
 export interface ServerHackData {
@@ -9,6 +11,7 @@ export interface ServerHackData {
     maxMoney: number;
     minSec: number;
     curSec: number;
+    secDiff: number;
     growthThreadsToMax: number;
     growthSecIncrease: number;
     weakenThreadsToMin: number;
@@ -25,9 +28,12 @@ export function getServerHackData(ns: NS, server: string): ServerHackData {
     const growTime = Math.ceil(ns.getGrowTime(server));
     const weakenTime = Math.ceil(ns.getWeakenTime(server));
     const maxMoney = ns.getServerMaxMoney(server);
-    const minSec = ns.getServerMinSecurityLevel(server);
-    const curSec = ns.getServerSecurityLevel(server);
+    const minSec = ceilNumberToDecimal(ns.getServerMinSecurityLevel(server), 2);
+    const curSec = ceilNumberToDecimal(ns.getServerSecurityLevel(server), 2);
+    const secDiff = ceilNumberToDecimal(ns.getServerSecurityLevel(server) - ns.getServerMinSecurityLevel(server), 2);
 
+    
+    const weakenThreadsToMin = calculateWeakenThreads(secDiff);
     const growthThreadsToMax = Math.ceil(ns.growthAnalyze(server, maxMoney / money));
     const moneyPerHack = Math.floor(money * ns.hackAnalyze(server));
     const result: ServerHackData = {
@@ -39,9 +45,10 @@ export function getServerHackData(ns: NS, server: string): ServerHackData {
         maxMoney: maxMoney,
         minSec: minSec,
         curSec: curSec,
+        secDiff: secDiff,
         growthThreadsToMax: growthThreadsToMax,
         growthSecIncrease: ns.growthAnalyzeSecurity(growthThreadsToMax, server, 1),
-        weakenThreadsToMin: Math.ceil((curSec - minSec) * 20),
+        weakenThreadsToMin: weakenThreadsToMin,
         moneyPerThread: moneyPerHack,
         moneyPerSecPerThread: Math.floor(moneyPerHack / (Math.max(weakenTime, hackTime, growTime) / 1000)),
     };

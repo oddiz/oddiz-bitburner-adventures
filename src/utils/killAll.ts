@@ -7,6 +7,7 @@ export async function main(ns: NS) {
 }
 
 export async function killAll(ns: NS) {
+    ns.disableLog("killall");
     const targets = await getRootedServers(ns).map((server) => server.hostname);
 
     const remoteServers = ns.getPurchasedServers();
@@ -15,5 +16,4 @@ export async function killAll(ns: NS) {
         ns.killall(target);
     }
 
-    ns.scriptKill(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home");
 }

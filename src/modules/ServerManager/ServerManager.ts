@@ -13,6 +13,7 @@ export interface RemotesWithRamInfo {
     totalAvailableRam: number;
 }
 export interface Task {
+    commandType: DispatchCommand["type"];
     target: string;
     op: "weaken" | "grow" | "hack";
     threads: number;
@@ -90,10 +91,6 @@ export class ServerManager {
         return true;
     }
 
-    async startListening() {
-        this.log("Listening for tasks...");
-        await this.processCommands();
-    }
     clearCommandQueue() {
         this.commandQueue = [];
     }
@@ -159,11 +156,12 @@ export class ServerManager {
                         }
                     }
                 }
-
-                //processing finished clear the queue
-                this.clearCommandQueue();
             }
+            //processing finished clear the queue
+            this.clearCommandQueue();
             this.processingQueue = false;
+
+            return true;
         } catch (error) {
             if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home"))
                 console.log("Error in processTasks loop: " + error);
@@ -208,13 +206,14 @@ export class ServerManager {
                 }
 
                 //check if server has 0 security level if not wait until it has
-
-                while (
-                    this.ns.getServerSecurityLevel(activeTask.target) -
-                        this.ns.getServerMinSecurityLevel(activeTask.target) >
-                    0.001
-                ) {
-                    await sleep(50);
+                if (task.commandType === "trio") {
+                    while (
+                        this.ns.getServerSecurityLevel(activeTask.target) -
+                            this.ns.getServerMinSecurityLevel(activeTask.target) >
+                        0.001
+                    ) {
+                        await sleep(50);
+                    }
                 }
                 const threadsToLaunch = activeTask.threads;
                 const execResult = this.ns.exec(
@@ -352,7 +351,7 @@ export class ServerManager {
         return true;
     }
     async dispatch(command: DispatchCommand) {
-        const now = new Date().getTime();
+        const now = Date.now();
         const commandInvalid = command.tasks.some((task) => task.threads < 1);
 
         if (commandInvalid) {

@@ -18,18 +18,22 @@ export class ServerMaintainer {
     }
 
     init() {
-        try {
-            console.log("Server Maintainer Started");
-            this.startLoop().then(() => {
-                console.log("Server Maintainer Loop Ended");
-            }).catch(error => {
-                console.log("Error in Server Maintainer Loop\n" + JSON.stringify(error, null, 2));
-            });
-        } catch (error) {
-            console.warn("Error trying to init server maintainer: " + error);
+        console.log("Server Maintainer Starting...");
 
-            return;
-        }
+        this.startLoop()
+            .then(() => {
+                console.log("Server Maintainer Loop Ended");
+
+                return;
+            })
+            .catch((error) => {
+                if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
+                    console.error("Error in startLoop\n" + JSON.stringify(error, null, 2));
+                }
+                return;
+            });
+
+        return this;
     }
 
     async startLoop() {
@@ -83,12 +87,14 @@ export class ServerMaintainer {
                 //await outputServers();
             } catch (error) {
                 if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home"))
-                    console.log("Error in Server Maintainer Loop\n" + JSON.stringify(error, null, 2));
+                    console.error("Error inside Server Maintainer Loop\n" + JSON.stringify(error, null, 2));
 
                 break;
             }
             await sleep(5000);
         }
+
+        return;
     }
     async outputServersToFile() {
         const myServers = this.ns.getPurchasedServers();
@@ -134,6 +140,8 @@ class SMLogger {
         this.latestMessageTime;
         this.latestSMInfo;
         this.loggingEnabled = loggingEnabled;
+
+        console.log("Logger initialized");
     }
     log(SMInfo?: SMInfo) {
         if (!SMInfo) {

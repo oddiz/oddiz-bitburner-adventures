@@ -1,13 +1,18 @@
 import { NS, Server } from "typings/Bitburner";
 import { DispatchCommand, ServerManager, Task } from "/modules/ServerManager/ServerManager";
 import { getServerHackData, ServerHackData } from "/utils/getServerHackData";
-import { calculateWeakenThreads } from "/utils/calculateWeakenThreads.js";
 import { sleep } from "/utils/sleep";
 
 import { EventEmitter } from "/vendor/eventemitter3/index.js";
 import { HackLoopInfo } from "/modules/ThreadManager/ThreadManager";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
-import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, TASK_EXEC_INTERVAL } from "/utils/constants";
+import {
+    COMMAND_EXEC_MIN_INTERVAL,
+    ODDIZ_HACK_TOOLKIT_SCRIPT_NAME,
+    RAM_ALLOCATION_RATIO,
+    TASK_EXEC_INTERVAL,
+} from "/utils/constants";
+import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
 
 /**
  * Runs for every server that we want to hack.
@@ -24,7 +29,6 @@ export class Thread extends EventEmitter {
     targetServer: Server;
     targetServerHackData: ServerHackData | null;
     serverManager: ServerManager;
-    looping: boolean;
     ns: NS;
     constructor(ns: NS, ServerManager: ServerManager, hostname: string) {
         super();
@@ -33,9 +37,7 @@ export class Thread extends EventEmitter {
         this.serverManager = ServerManager;
         this.targetHostname = hostname;
         this.targetServer = this.ns.getServer(hostname);
-        this.targetServerHackData = null;
-
-        this.looping = false;
+        this.targetServerHackData = getServerHackData(this.ns, this.targetHostname);
 
         this.run();
     }
@@ -43,14 +45,15 @@ export class Thread extends EventEmitter {
     run(): void {
         try {
             //this.ns.print("Running Thread for " + this.targetServer.organizationName);
-            this.targetServerHackData = getServerHackData(this.ns, this.targetHostname);
             if (!this.targetServerHackData) {
                 this.log("ERROR: Could not get server hack data. Terminating thread...)");
             }
             this.readyTargetForLoop()
                 .then((serverReady) => {
                     if (!serverReady) {
-                        //this.log(`Not ready for hacking loop yet`);
+                        console.warn(
+                            `Thread for [${this.targetHostname}] is not ready after waiting for it to be ready!`
+                        );
                     } else {
                         this.emit("ready");
                     }
@@ -84,12 +87,16 @@ export class Thread extends EventEmitter {
 
                 return;
             }
+            console.log("No data for this hack percentage. Memory:");
+            console.log(JSON.stringify(hackLoopMemory, null, 2));
         }
 
+        const commandType = "readify";
         const hackData = getServerHackData(this.ns, this.targetHostname);
 
         //execute 1 hack task
         const hackTask: Task = {
+            commandType: commandType,
             target: this.targetHostname,
             op: "hack",
             threads: hackLoopData.opThreads.hack,
@@ -105,9 +112,8 @@ export class Thread extends EventEmitter {
 
         const result = await this.serverManager.dispatch(hackCommand);
 
+        await sleep(hackData.hackTime + 500);
         if (result) {
-            await sleep(hackData.hackTime + 500);
-
             const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
             const targetSv = this.ns.getServer(this.targetHostname);
             const newHackData = calculateHackLoop(this.ns, targetSv, hackLoopData.hackPercentage, totalAvailableRam);
@@ -145,6 +151,8 @@ export class Thread extends EventEmitter {
             const isSuccessful = await this.readyTargetForLoop();
 
             if (isSuccessful) {
+                console.warn("Target weren't ready after readyTargetForLoop(). isSuccessful: " + isSuccessful);
+
                 //server is ready time to start perfect hack loop
                 this.startLoop(goldenLoopInfo);
 
@@ -176,94 +184,108 @@ export class Thread extends EventEmitter {
     async getLoopDataFromMemory(): Promise<LoopDataMemory | null> {
         try {
             const memory = await this.ns.read("hackLoopMemory.js");
-            const parsedMemory = JSON.parse(memory);
+            const parsedMemory: MemoryServer = JSON.parse(memory);
             if (!parsedMemory) {
+                console.log("Couldn't get memory");
                 return null;
             }
 
-            return parsedMemory?.[this.targetHostname];
+            return parsedMemory[this.targetHostname];
         } catch (error) {
             return null;
         }
     }
     async startLoop(targetLoopInfo: HackLoopInfo) {
-        try {
-            if (this.looping) return;
-
-            this.looping = true;
-
-            const spawnHackTrio = () => {
-                try {
-                    const opTypes: {
-                        op: string;
-                        time: number;
-                    }[] = [];
-                    for (const opType in targetLoopInfo.opTimes) {
-                        opTypes.push({
-                            op: opType,
-                            time: targetLoopInfo.opTimes[opType],
-                        });
-                    }
-                    const { grow, hack, weaken } = targetLoopInfo.opTimes;
-                    const loopTime = Math.max(grow, hack, weaken);
-
-                    let counter = 0;
-
-                    const currentTime = new Date().getTime();
-
-                    //first hack
-                    const hackTask: Task = {
-                        target: this.targetHostname,
-                        op: "hack",
-                        threads: targetLoopInfo.opThreads.hack,
-                        executeTime: currentTime + loopTime - hack + TASK_EXEC_INTERVAL * counter,
-                        dispatchTime: 0,
-                    };
-                    counter++;
-                    //then grow
-                    const growTask: Task = {
-                        target: this.targetHostname,
-                        op: "grow",
-                        threads: targetLoopInfo.opThreads.grow,
-                        executeTime: currentTime + loopTime - grow + TASK_EXEC_INTERVAL * counter,
-                        dispatchTime: 0,
-                    };
-                    counter++;
-                    //finally weaken
-                    const weakenTask: Task = {
-                        target: this.targetHostname,
-                        op: "weaken",
-                        threads: targetLoopInfo.opThreads.weaken,
-                        executeTime: currentTime + loopTime - weaken + TASK_EXEC_INTERVAL * counter,
-                        dispatchTime: 0,
-                    };
-
-                    const dispatchCommand: DispatchCommand = {
-                        type: "trio",
-                        tasks: [hackTask, growTask, weakenTask],
-                        latestExecTime: currentTime + 100,
-                    };
-
-                    this.serverManager.dispatch(dispatchCommand);
-                } catch (error) {
-                    console.log("Error in spawnHackTrio: " + error);
+        const spawnHackTrio = () => {
+            try {
+                const opTypes: {
+                    op: string;
+                    time: number;
+                }[] = [];
+                for (const opType in targetLoopInfo.opTimes) {
+                    opTypes.push({
+                        op: opType,
+                        time: targetLoopInfo.opTimes[opType],
+                    });
                 }
-            };
-            console.log("Starting hack loop...");
-            const repeatInt = targetLoopInfo.repeatIntervalSec * 1000;
+                const { grow, hack, weaken } = targetLoopInfo.opTimes;
+                const loopTime = Math.max(grow, hack, weaken);
+
+                let counter = 0;
+
+                const currentTime = Date.now();
+                const commandType = "trio";
+                //first hack
+                const hackTask: Task = {
+                    commandType: commandType,
+                    target: this.targetHostname,
+                    op: "hack",
+                    threads: targetLoopInfo.opThreads.hack,
+                    executeTime: currentTime + loopTime - hack + TASK_EXEC_INTERVAL * counter,
+                    dispatchTime: 0,
+                };
+                counter++;
+                //then grow
+                const growTask: Task = {
+                    commandType: commandType,
+                    target: this.targetHostname,
+                    op: "grow",
+                    threads: targetLoopInfo.opThreads.grow,
+                    executeTime: currentTime + loopTime - grow + TASK_EXEC_INTERVAL * counter,
+                    dispatchTime: 0,
+                };
+                counter++;
+                //finally weaken
+                const weakenTask: Task = {
+                    commandType: commandType,
+                    target: this.targetHostname,
+                    op: "weaken",
+                    threads: targetLoopInfo.opThreads.weaken,
+                    executeTime: currentTime + loopTime - weaken + TASK_EXEC_INTERVAL * counter,
+                    dispatchTime: 0,
+                };
+
+                const dispatchCommand: DispatchCommand = {
+                    type: commandType,
+                    tasks: [hackTask, growTask, weakenTask],
+                    latestExecTime: currentTime + 100,
+                };
+
+                this.serverManager.dispatch(dispatchCommand);
+            } catch (error) {
+                console.log("Error in spawnHackTrio: " + error);
+            }
+        };
+        console.log("Starting hack loop...");
+        try {
+            const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
+            const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / targetLoopInfo.requiredRam);
+            const calculatedRepeatInt = targetLoopInfo.loopTime / repeatCapacity;
+
+            console.log(
+                "Recalculated repeat interval for current RAM specs. Old interval:" +
+                    targetLoopInfo.repeatIntervalSec * 1000 +
+                    "New interval: " +
+                    calculatedRepeatInt
+            );
+            const repeatInt = Math.max(calculatedRepeatInt, COMMAND_EXEC_MIN_INTERVAL);
             //setInterval(spawnHackTrio, repeatInt * 1.01); //add %1 to make sure we good
 
             while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
                 spawnHackTrio();
-                await sleep(repeatInt * 1.01).catch();
+                await sleep(repeatInt * 1.01).catch(() => {
+                    return null;
+                });
             }
             console.log("Script is not running anymore. Terminating thread...");
 
             return;
             //spawnHackTrio();
         } catch (error) {
-            if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home"))
+            if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
                 console.log("Error in startLoop: " + error);
+            }
+            return null;
         }
     }
 
@@ -276,32 +298,24 @@ export class Thread extends EventEmitter {
     private async readyTargetForLoop(): Promise<boolean> {
         if (this.isReadyForLoop()) return true;
 
-        const targetServerHackData = getServerHackData(this.ns, this.targetHostname);
+        const targetServerHackData = this.getHackData();
+        console.log(targetServerHackData);
 
+        const commandType = "readify";
         const commandResult: DispatchCommand = {
             type: "readify",
             tasks: [],
-            latestExecTime: Infinity, // 0.9 secconds of leeway
+            latestExecTime: Infinity,
         };
         //if not ready for loop grow to max while weakening to min
-        const growTime = Math.floor(targetServerHackData.growTime);
         const weakenTime = Math.floor(targetServerHackData.weakenTime);
 
-        let growExecTime = 0;
-        let weakenExecTime = 0;
-        let maxTime = 0;
-        if (growTime > weakenTime) {
-            maxTime = growTime;
-
-            growExecTime = new Date().getTime();
-            weakenExecTime = growExecTime + growTime - weakenTime;
-        } else {
-            maxTime = weakenTime;
-            weakenExecTime = new Date().getTime();
-            growExecTime = weakenExecTime + weakenTime - growTime;
-        }
+        const maxTime = weakenTime;
+        const weakenExecTime = Date.now();
+        const growExecTime = weakenExecTime - TASK_EXEC_INTERVAL;
 
         const growTask: Task = {
+            commandType: commandType,
             target: this.targetHostname,
             op: "grow",
             threads: targetServerHackData.growthThreadsToMax,
@@ -314,10 +328,11 @@ export class Thread extends EventEmitter {
         //sec decrease task
 
         const hackData = this.targetServerHackData as ServerHackData;
-        const secToDecrease = hackData.growthSecIncrease + hackData.curSec - hackData.minSec;
-        const weakenThreads = calculateWeakenThreads(secToDecrease);
+        const secToDecrease = hackData.secDiff;
+        const weakenThreads = hackData.weakenThreadsToMin + calculateWeakenThreads(hackData.growthSecIncrease);
 
         const weakenTask: Task = {
+            commandType: commandType,
             target: this.targetHostname,
             op: "weaken",
             threads: weakenThreads,
@@ -341,13 +356,13 @@ export class Thread extends EventEmitter {
         else return false;
     }
 
-    updateHackData() {
+    getHackData() {
         const newTargetHackData = getServerHackData(this.ns, this.targetHostname);
         this.targetServerHackData = newTargetHackData;
         return newTargetHackData;
     }
     isReadyForLoop(): boolean {
-        const hackData = this.updateHackData();
+        const hackData = this.getHackData();
         if (!hackData) return false;
         return hackData.growthThreadsToMax === 0 && hackData.weakenThreadsToMin === 0;
     }

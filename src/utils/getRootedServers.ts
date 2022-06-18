@@ -22,6 +22,7 @@ export async function main(ns: NS) {
  * @param {import("../../..").NS} ns */
 export function getRootedServers(ns: NS) {
     try {
+        ns.disableLog("ALL");
         const allServers = getAllServers(ns);
         const targets = allServers;
 

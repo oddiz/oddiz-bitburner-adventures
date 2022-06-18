@@ -2,10 +2,7 @@ import { MONITORJS_REFRESH_INTERVAL } from "/utils/constants";
 import { NS } from "/typings/Bitburner";
 
 export async function main(ns: NS) {
-    const flags = ns.flags([
-        ["refreshrate", MONITORJS_REFRESH_INTERVAL],
-        ["help", false],
-    ]);
+    const flags = ns.flags([["help", false]]);
     if (flags._.length === 0 || flags.help) {
         ns.tprint("This script helps visualize the money and security of a server.");
         ns.tprint(`USAGE: run ${ns.getScriptName()} SERVER_NAME`);
@@ -17,16 +14,16 @@ export async function main(ns: NS) {
     ns.tail();
     ns.disableLog("ALL");
     // eslint-disable-next-line no-constant-condition
-    while (ns.scriptRunning("monitor.js", "home")) {
+    while (ns.scriptRunning("/utils/monitor.js", "home")) {
         const server = flags._[0];
         ns.clearLog();
 
         logServerDetails(ns, server);
 
-        await ns.sleep(flags.refreshrate);
+        await ns.sleep(MONITORJS_REFRESH_INTERVAL);
     }
 }
-export function autocomplete(data, args) {
+export function autocomplete(data) {
     return data.servers;
 }
 

@@ -12,6 +12,6 @@ export async function main(ns: NS) {
         window.document.getElementById("overview-extra-hook-0")
     );
     while (ns.scriptRunning("/ui/ui.js", "home")) {
-        await sleep(10000);
+        await ns.asleep(10000);
     }
 }

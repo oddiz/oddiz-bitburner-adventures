@@ -3,8 +3,9 @@ import { getRootedServers } from "/utils/getRootedServers";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { Thread } from "/modules/Thread/Thread";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
-import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { DEBUG_MODE, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
 import { selectBestServerToHack } from "/modules/ThreadManager/selectBestServerToHack";
+import { EventEmitter } from "/vendor/eventemitter3/index.js";
 
 export type TargetHackLoopData = HackLoopInfo & {
     moneyPerCpuSecFormatted: string;
@@ -17,12 +18,13 @@ type RunningThread = {
     thread: Thread;
     ready: boolean;
 };
-export class ThreadManager {
+export class ThreadManager extends EventEmitter {
     availableServers: Server[];
     serverManager: ServerManager;
     runningThreads: Map<string, RunningThread>;
     ns: NS;
     constructor(ns: NS, ServerManager: ServerManager) {
+        super();
         this.ns = ns;
         this.availableServers = [];
         this.serverManager = ServerManager;
@@ -40,6 +42,38 @@ export class ThreadManager {
             .write("/logs/hackable_servers.txt", JSON.stringify(this.availableServers, null, 4), "w")
             .catch((err) => this.log(err));
 
+        this.once("all_threads_ready", () => {
+            try {
+                const allThreads = Array.from(this.runningThreads.values()).map(
+                    (runningThread) => runningThread.thread
+                );
+
+                const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
+                const calculatedServerLoopInfos: HackLoopInfo[] = [];
+                for (let i = 1; i < 12; i++) {
+                    for (const thread of allThreads) {
+                        const result = calculateHackLoop(this.ns, thread.targetServer, i * 9, totalAvailableRam);
+
+                        if (!result) {
+                            this.log("No result found for thread: " + thread.targetHostname);
+                            continue;
+                        }
+
+                        calculatedServerLoopInfos.push(result);
+                    }
+                }
+                //this.log(JSON.stringify(calcOutput, null, 4));
+                const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos, DEBUG_MODE);
+                if (!selectedTargetLoopInfo) throw new Error("No target found even with default interval!");
+
+                console.log("Selected Target: " + JSON.stringify(selectedTargetLoopInfo, null, 2));
+
+                this.signalThreadToLoop(selectedTargetLoopInfo);
+            } catch (error) {
+                console.log("Error after all threads are ready: " + error);
+            }
+        });
+
         this.log("Deploying threads...");
 
         await this.deployThreads();
@@ -47,8 +81,8 @@ export class ThreadManager {
 
     async deployThreads() {
         const targets: string[] = getRootedServers(this.ns).map((server) => server.hostname);
-
         //const targets = ["iron-gym", "foodnstuff"];
+
         for (const target of targets) {
             const newThread = new Thread(this.ns, this.serverManager, target);
 
@@ -69,47 +103,16 @@ export class ThreadManager {
                     //check if all threads are ready
                     const allThreadsReady = Array.from(this.runningThreads.values()).every((thread) => thread.ready);
 
-                    if (allThreadsReady) {
-                        this.log("All threads are ready for hacking!");
-
-                        const allThreads = Array.from(this.runningThreads.values()).map(
-                            (runningThread) => runningThread.thread
-                        );
-
-                        const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
-                        const calculatedServerLoopInfos: HackLoopInfo[] = [];
-                        for (let i = 1; i < 12; i++) {
-                            for (const thread of allThreads) {
-                                const result = calculateHackLoop(
-                                    this.ns,
-                                    thread.targetServer,
-                                    i * 9,
-                                    totalAvailableRam
-                                );
-
-                                if (!result) {
-                                    this.log("No result found for thread: " + thread.targetHostname);
-                                    continue;
-                                }
-
-                                calculatedServerLoopInfos.push(result);
-                            }
-                            //this.log(JSON.stringify(calcOutput, null, 4));
-                        }
-
-                        const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos);
-
-                        if (!selectedTargetLoopInfo) throw new Error("No target found even with default interval!");
-
-                        console.log("Selected Target: " + JSON.stringify(selectedTargetLoopInfo, null, 2));
-
-                        this.signalThreadToLoop(selectedTargetLoopInfo);
+                    if (allThreadsReady || DEBUG_MODE) {
+                        this.emit("all_threads_ready");
                     }
                 } catch (error) {
                     if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) this.log("Error: " + error);
                 }
             });
         }
+
+        console.log("Threads deployed!");
     }
 
     async signalThreadToLoop(targetHackLoopData: HackLoopInfo) {
