@@ -5,11 +5,9 @@ import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { NS, Server } from "/typings/Bitburner";
 import { RAM_ALLOCATION_RATIO } from "/utils/constants";
 
-RAM_ALLOCATION_RATIO;
-
-export function calculateHackLoop(ns: NS, server: Server, percentage: number, totalAvailableRam: number) {
+export function calculateHackLoop(ns: NS, server: Server, percentage: number, totalAvailableRam: number, cores = 1) {
     try {
-        const serverHackData = getServerHackData(ns, server.hostname);
+        const serverHackData = getServerHackData(ns, server.hostname, cores);
         let money = serverHackData.money;
         if (money === 0) money = 1;
 
@@ -26,10 +24,10 @@ export function calculateHackLoop(ns: NS, server: Server, percentage: number, to
         const reqHackThreads = Math.floor(ns.hackAnalyzeThreads(server.hostname, money * (safePercentage / 100)));
         const hackSecIncrease = ns.hackAnalyzeSecurity(reqHackThreads, server.hostname);
 
-        const reqGrowThreads = numCycleForGrowthByHackAmt(server, percentage / 100, money, ns.getPlayer(), 1);
-        const growSecIncrease = ns.growthAnalyzeSecurity(reqGrowThreads);
+        const reqGrowThreads = numCycleForGrowthByHackAmt(server, percentage / 100, money, ns.getPlayer(), cores);
+        const growSecIncrease = ns.growthAnalyzeSecurity(reqGrowThreads, undefined, cores);
 
-        const reqWeakenThreads = calculateWeakenThreads(hackSecIncrease + growSecIncrease);
+        const reqWeakenThreads = calculateWeakenThreads(hackSecIncrease + growSecIncrease, cores);
 
         const { hackTime, growTime, weakenTime } = serverHackData;
 

@@ -52,7 +52,7 @@ export class ThreadManager extends EventEmitter {
                 const calculatedServerLoopInfos: HackLoopInfo[] = [];
                 for (let i = 1; i < 12; i++) {
                     for (const thread of allThreads) {
-                        const result = calculateHackLoop(this.ns, thread.targetServer, i * 9, totalAvailableRam);
+                        const result = calculateHackLoop(this.ns, thread.targetServer, i * 9, totalAvailableRam, this.serverManager.homeServerCpu || 1);
 
                         if (!result) {
                             this.log("No result found for thread: " + thread.targetHostname);

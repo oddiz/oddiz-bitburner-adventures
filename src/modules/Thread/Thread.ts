@@ -37,7 +37,11 @@ export class Thread extends EventEmitter {
         this.serverManager = ServerManager;
         this.targetHostname = hostname;
         this.targetServer = this.ns.getServer(hostname);
-        this.targetServerHackData = getServerHackData(this.ns, this.targetHostname);
+        this.targetServerHackData = getServerHackData(
+            this.ns,
+            this.targetHostname,
+            this.serverManager.homeServerCpu || 1
+        );
 
         this.run();
     }
@@ -116,7 +120,13 @@ export class Thread extends EventEmitter {
         if (result) {
             const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
             const targetSv = this.ns.getServer(this.targetHostname);
-            const newHackData = calculateHackLoop(this.ns, targetSv, hackLoopData.hackPercentage, totalAvailableRam);
+            const newHackData = calculateHackLoop(
+                this.ns,
+                targetSv,
+                hackLoopData.hackPercentage,
+                totalAvailableRam,
+                this.serverManager.homeServerCpu || 1
+            );
 
             if (!newHackData) {
                 console.warn("Error calculating hack loop. Check logs.");
@@ -162,6 +172,9 @@ export class Thread extends EventEmitter {
 
     async saveLoopDataToMemory(hackLoopData: HackLoopInfo) {
         try {
+            if (this.serverManager.homeServer) {
+                return;
+            }
             let memory = await this.getLoopDataFromMemory();
 
             if (!memory) {
@@ -182,6 +195,7 @@ export class Thread extends EventEmitter {
 
     async getLoopDataFromMemory(): Promise<LoopDataMemory | null> {
         try {
+            if (this.serverManager.homeServer) return null;
             const memory = await this.ns.read("hackLoopMemory.js");
             const parsedMemory: LoopDataMemory = JSON.parse(memory);
             if (!parsedMemory) {
@@ -328,7 +342,7 @@ export class Thread extends EventEmitter {
 
         const hackData = this.targetServerHackData as ServerHackData;
         const secToDecrease = hackData.secDiff;
-        const weakenThreads = hackData.weakenThreadsToMin + calculateWeakenThreads(hackData.growthSecIncrease);
+        const weakenThreads = hackData.weakenThreadsToMin + calculateWeakenThreads(hackData.growthSecIncrease, this.serverManager.homeServerCpu || 1);
 
         const weakenTask: Task = {
             commandType: commandType,
@@ -356,7 +370,11 @@ export class Thread extends EventEmitter {
     }
 
     getHackData() {
-        const newTargetHackData = getServerHackData(this.ns, this.targetHostname);
+        const newTargetHackData = getServerHackData(
+            this.ns,
+            this.targetHostname,
+            this.serverManager.homeServerCpu || 1
+        );
         this.targetServerHackData = newTargetHackData;
         return newTargetHackData;
     }

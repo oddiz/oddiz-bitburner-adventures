@@ -55,6 +55,8 @@ export class ServerManager {
     };
     private processingQueue: boolean;
     serverMaintainer: ServerMaintainer;
+    homeServer: boolean;
+    homeServerCpu: number | null;
 
     constructor(private ns: NS) {
         this.ns = ns;
@@ -67,12 +69,14 @@ export class ServerManager {
 
         this.commandQueue = [];
         this.processingQueue = false;
+
+        this.homeServer = false;
+        this.homeServerCpu = null;
     }
     async init() {
         this.ns.disableLog("scp");
         this.log("Starting...");
         this.log("Getting script sizes...");
-
         this.log("Getting remote servers...");
         this.refreshRemoteServers();
 
@@ -330,6 +334,10 @@ export class ServerManager {
     refreshRemoteServers() {
         this.remoteServers = [...getRemoteServers(this.ns)];
 
+        if (this.remoteServers.every((server) => server.hostname === "home")) {
+            this.homeServer = true;
+            this.homeServerCpu = this.ns.getServer("home").cpuCores;
+        }
         return this.remoteServers;
     }
 

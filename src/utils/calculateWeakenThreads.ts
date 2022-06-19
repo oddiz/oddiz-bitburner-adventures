@@ -1,3 +1,3 @@
-export function calculateWeakenThreads(securityLevel: number): number {
-    return Math.ceil(securityLevel * 20);
+export function calculateWeakenThreads(securityLevel: number, cores = 1): number {
+    return Math.ceil((securityLevel * 20) / cores);
 }

@@ -1,6 +1,6 @@
 //gets all servers found with getServers.js
 
-const rootOptions = ["brutessh", "ftpcrack", "relaysmtp", "http"];
+const rootOptions = ["brutessh", "ftpcrack", "relaysmtp", "http", "sql"];
 
 import { getAllServers } from "/utils/getAllServers";
 import { NS, Server } from "typings/Bitburner";
@@ -61,11 +61,15 @@ export function getRootedServers(ns: NS) {
                 continue;
             }
 
-            const hackQueue = rootOptions.slice(0, reqPorts);
+            if (ns.getHackingLevel() > 48) {
+                //brute ssh is not available below 48
 
-            for (const hackMethod of hackQueue) {
-                //ns.print(hackMethod);
-                hackTargetWithMethod(target, hackMethod);
+                const hackQueue = rootOptions.slice(0, reqPorts);
+
+                for (const hackMethod of hackQueue) {
+                    //ns.print(hackMethod);
+                    hackTargetWithMethod(target, hackMethod);
+                }
             }
 
             ns.nuke(target);

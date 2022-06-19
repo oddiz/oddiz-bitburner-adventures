@@ -19,7 +19,7 @@ export interface ServerHackData {
     moneyPerSecPerThread: number;
 }
 
-export function getServerHackData(ns: NS, server: string): ServerHackData {
+export function getServerHackData(ns: NS, server: string, cores = 1): ServerHackData {
     const hostname = server;
 
     let money = ns.getServerMoneyAvailable(server);
@@ -32,9 +32,8 @@ export function getServerHackData(ns: NS, server: string): ServerHackData {
     const curSec = ceilNumberToDecimal(ns.getServerSecurityLevel(server), 2);
     const secDiff = ceilNumberToDecimal(ns.getServerSecurityLevel(server) - ns.getServerMinSecurityLevel(server), 2);
 
-    
-    const weakenThreadsToMin = calculateWeakenThreads(secDiff);
-    const growthThreadsToMax = Math.ceil(ns.growthAnalyze(server, maxMoney / money));
+    const weakenThreadsToMin = calculateWeakenThreads(secDiff, cores);
+    const growthThreadsToMax = Math.ceil(ns.growthAnalyze(server, maxMoney / money, cores));
     const moneyPerHack = Math.floor(money * ns.hackAnalyze(server));
     const result: ServerHackData = {
         hostname: hostname,
@@ -47,7 +46,7 @@ export function getServerHackData(ns: NS, server: string): ServerHackData {
         curSec: curSec,
         secDiff: secDiff,
         growthThreadsToMax: growthThreadsToMax,
-        growthSecIncrease: ns.growthAnalyzeSecurity(growthThreadsToMax, server, 1),
+        growthSecIncrease: ns.growthAnalyzeSecurity(growthThreadsToMax, server, cores),
         weakenThreadsToMin: weakenThreadsToMin,
         moneyPerThread: moneyPerHack,
         moneyPerSecPerThread: Math.floor(moneyPerHack / (Math.max(weakenTime, hackTime, growTime) / 1000)),
