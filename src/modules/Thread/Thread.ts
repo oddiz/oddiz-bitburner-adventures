@@ -78,7 +78,7 @@ export class Thread extends EventEmitter {
 
         const hackLoopMemory = await this.getLoopDataFromMemory();
         if (hackLoopMemory) {
-            const serverHackLoopData = hackLoopMemory?.[this.targetHostname]?.[String(hackLoopData.hackPercentage)];
+            const serverHackLoopData = hackLoopMemory[this.targetHostname][hackLoopData.hackPercentage];
 
             if (serverHackLoopData) {
                 console.log("Already have data for this hack percentage");
@@ -151,13 +151,12 @@ export class Thread extends EventEmitter {
             const isSuccessful = await this.readyTargetForLoop();
 
             if (isSuccessful) {
-                console.warn("Target weren't ready after readyTargetForLoop(). isSuccessful: " + isSuccessful);
-
                 //server is ready time to start perfect hack loop
                 this.startLoop(goldenLoopInfo);
 
                 return;
             }
+            console.warn("Target weren't ready after readyTargetForLoop(). isSuccessful: " + isSuccessful);
         }
     }
 
@@ -184,13 +183,13 @@ export class Thread extends EventEmitter {
     async getLoopDataFromMemory(): Promise<LoopDataMemory | null> {
         try {
             const memory = await this.ns.read("hackLoopMemory.js");
-            const parsedMemory: MemoryServer = JSON.parse(memory);
+            const parsedMemory: LoopDataMemory = JSON.parse(memory);
             if (!parsedMemory) {
                 console.log("Couldn't get memory");
                 return null;
             }
 
-            return parsedMemory[this.targetHostname];
+            return parsedMemory;
         } catch (error) {
             return null;
         }
