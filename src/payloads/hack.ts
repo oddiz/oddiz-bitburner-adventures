@@ -13,15 +13,34 @@ export async function main(ns: NS) {
 
     if (plannedExecuteTime > startTime) {
         await sleep(plannedExecuteTime - dispatchTime);
-        const now = Date.now();
-        const nowDate = new Date(now);
-
-        ns.print("Executed at: " + ` [${nowDate.toLocaleTimeString()}]`);
-        ns.print("Execute lag: " + (now - plannedExecuteTime) + "ms");
     }
+
+    let counter = 0;
+    const waitInMs = 50;
+    while (getSecurityLevel(ns, target) > 0) {
+        await sleep(waitInMs);
+        counter++;
+    }
+
+    if (counter > 0) {
+        console.log(`Hack waited ${counter * waitInMs} ms for server to be ready`);
+    }
+
+    const now = Date.now();
+    const nowDate = new Date(now);
+
+    ns.print("Executed at: " + ` [${nowDate.toLocaleTimeString()}]`);
+    ns.print("Execute lag: " + (now - plannedExecuteTime) + "ms");
     await ns.hack(target);
 }
 
 function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getSecurityLevel(ns: NS, target: string) {
+    const minSec = ns.getServerMinSecurityLevel(target);
+    const curSec = ns.getServerMinSecurityLevel(target);
+
+    return curSec - minSec;
 }

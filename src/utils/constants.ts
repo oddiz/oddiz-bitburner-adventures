@@ -13,4 +13,4 @@ export const RAM_ALLOCATION_RATIO = 0.8; // ratio of what percentage of availabl
 
 export const MONITORJS_REFRESH_INTERVAL = 1000 / 60; // 30 hz- how often to refresh the monitor
 
-export const DEBUG_MODE = false; // if true, will select fastest server to hack
+export const DEBUG_MODE = true; // if true, will select fastest server to hack
