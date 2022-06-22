@@ -24,5 +24,6 @@
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true
     },
-    "exclude": ["hackLoopMemoryExample.json"]
+    "exclude": ["hackLoopMemoryExample.json", "build/**/*"],
+    "include": ["src/**/*"]
 }

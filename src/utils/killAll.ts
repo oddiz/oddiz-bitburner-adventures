@@ -1,4 +1,3 @@
-import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
 import { NS } from "/typings/Bitburner";
 import { getRootedServers } from "/utils/getRootedServers";
 
@@ -16,4 +15,10 @@ export async function killAll(ns: NS) {
         ns.killall(target);
     }
 
+    //for home server
+    const payloadNames = ["grow.js", "hack.js", "weaken.js"];
+    const payloadDir = "/payloads/";
+    for (const payloadName of payloadNames) {
+        ns.scriptKill(payloadDir + payloadName, "home");
+    } 
 }

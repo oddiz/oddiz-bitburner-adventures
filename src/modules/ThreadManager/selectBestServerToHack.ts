@@ -1,16 +1,16 @@
 import { calculateDefaultIntervalPerformance } from "/modules/ThreadManager/calculateDefaultIntervalPerformance";
 import { HackLoopInfo } from "./ThreadManager";
-import { COMMAND_EXEC_MIN_INTERVAL, TASK_EXEC_INTERVAL } from "/utils/constants";
+import { COMMAND_EXEC_MIN_INTERVAL, DEBUG_MIN_LOOPTIME, DEBUG_MODE } from "/utils/constants";
 
-export function selectBestServerToHack(serverHackLoopInfos: HackLoopInfo[], debugMode = false) {
+export function selectBestServerToHack(serverHackLoopInfos: HackLoopInfo[]) {
     try {
-        if (debugMode) {
+        if (DEBUG_MODE) {
             console.log("Debug mode active, selecting server with lowest loop time and highest hack percent");
 
             const sortedInfos = serverHackLoopInfos
                 .sort((a, b) => b.hackPercentage - a.hackPercentage)
                 .sort((a, b) => a.loopTime - b.loopTime)
-                .filter((info) => info.loopTime > TASK_EXEC_INTERVAL * 3 + COMMAND_EXEC_MIN_INTERVAL);
+                .filter((info) => info.loopTime > DEBUG_MIN_LOOPTIME); // more then 30 sec loop time
 
             return sortedInfos[0];
         }

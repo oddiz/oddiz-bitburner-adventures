@@ -5,6 +5,7 @@ const React = window.React;
 const ReactDOM = window.ReactDOM;
 
 export async function main(ns: NS) {
+    ns.disableLog("asleep");
     ReactDOM.render(
         <React.StrictMode>
             <Dashboard ns={ns} />

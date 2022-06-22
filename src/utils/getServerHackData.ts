@@ -3,6 +3,7 @@ import { ceilNumberToDecimal } from "/utils/ceilNumberToDecimal";
 import { NS } from "/typings/Bitburner";
 
 export interface ServerHackData {
+    cores: number;
     hostname: string;
     hackTime: number;
     growTime: number;
@@ -13,8 +14,9 @@ export interface ServerHackData {
     curSec: number;
     secDiff: number;
     growthThreadsToMax: number;
-    growthSecIncrease: number;
     weakenThreadsToMin: number;
+    weakenThreadsToMinAfterGrowth: number;
+    growthSecIncrease: number;
     moneyPerThread: number;
     moneyPerSecPerThread: number;
 }
@@ -32,10 +34,15 @@ export function getServerHackData(ns: NS, server: string, cores = 1): ServerHack
     const curSec = ceilNumberToDecimal(ns.getServerSecurityLevel(server), 2);
     const secDiff = ceilNumberToDecimal(ns.getServerSecurityLevel(server) - ns.getServerMinSecurityLevel(server), 2);
 
-    const weakenThreadsToMin = calculateWeakenThreads(secDiff, cores);
+    const weakenThreadsToMin = calculateWeakenThreads(ns, secDiff, cores);
     const growthThreadsToMax = Math.ceil(ns.growthAnalyze(server, maxMoney / money, cores));
+    const growthSecIncrease = ceilNumberToDecimal(ns.growthAnalyzeSecurity(growthThreadsToMax, undefined, cores), 2);
+
+    const weakenThreadsToMinAfterGrowth = calculateWeakenThreads(ns, growthSecIncrease + secDiff, cores);
+
     const moneyPerHack = Math.floor(money * ns.hackAnalyze(server));
     const result: ServerHackData = {
+        cores: cores,
         hostname: hostname,
         hackTime: hackTime,
         growTime: growTime,
@@ -45,9 +52,12 @@ export function getServerHackData(ns: NS, server: string, cores = 1): ServerHack
         minSec: minSec,
         curSec: curSec,
         secDiff: secDiff,
+        growthSecIncrease: growthSecIncrease,
+
         growthThreadsToMax: growthThreadsToMax,
-        growthSecIncrease: ns.growthAnalyzeSecurity(growthThreadsToMax, server, cores),
         weakenThreadsToMin: weakenThreadsToMin,
+        weakenThreadsToMinAfterGrowth: weakenThreadsToMinAfterGrowth,
+
         moneyPerThread: moneyPerHack,
         moneyPerSecPerThread: Math.floor(moneyPerHack / (Math.max(weakenTime, hackTime, growTime) / 1000)),
     };

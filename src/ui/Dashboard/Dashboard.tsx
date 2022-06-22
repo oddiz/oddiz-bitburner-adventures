@@ -2,7 +2,7 @@ import { NS } from "/typings/Bitburner";
 import { killAll } from "/utils/killAll";
 import { Button } from "/ui/Dashboard/Button";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
-import { sleep } from "/utils/sleep";
+import { MonitorInput } from "/ui/Dashboard/MonitorInput";
 
 const React = window.React;
 
@@ -33,8 +33,17 @@ export const Dashboard = ({ ns }: IDashboardProps) => {
                 flexGrow: 1,
             }}
         >
-            <Button bg="red" title="Kill All!" onButtonClick={killAllClicked} />
-            <Button bg="green" title="Run!" onButtonClick={runClicked} />
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                }}
+            >
+                <Button bg="red" title="Kill All!" onButtonClick={killAllClicked} />
+                <Button bg="green" title="Run!" onButtonClick={runClicked} />
+
+            </div>
+            <MonitorInput ns={ns} />
         </div>
     );
 };

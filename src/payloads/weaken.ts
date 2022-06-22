@@ -3,6 +3,7 @@ import { NS } from "typings/Bitburner";
 export async function main(ns: NS) {
     const target = ns.args[0] as string;
     const plannedExecuteTime = (ns.args[1] as number) || 0;
+    const force = (ns.args[3] as boolean) || false;
 
     const startTime = Date.now();
 
@@ -14,12 +15,13 @@ export async function main(ns: NS) {
     if (plannedExecuteTime > startTime) {
         await sleep(plannedExecuteTime - dispatchTime);
     }
-
     let counter = 0;
-    const waitInMs = 50;
-    while (getSecurityLevel(ns, target) > 0) {
-        await sleep(waitInMs);
-        counter++;
+    const waitInMs = 20;
+    if (!force) {
+        while (getSecurityLevel(ns, target) > 0) {
+            await sleep(waitInMs);
+            counter++;
+        }
     }
 
     if (counter > 0) {
@@ -40,7 +42,7 @@ function sleep(ms: number) {
 
 function getSecurityLevel(ns: NS, target: string) {
     const minSec = ns.getServerMinSecurityLevel(target);
-    const curSec = ns.getServerMinSecurityLevel(target);
+    const curSec = ns.getServerSecurityLevel(target);
 
     return curSec - minSec;
 }

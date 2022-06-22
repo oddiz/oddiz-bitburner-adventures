@@ -64,12 +64,21 @@ export function getRootedServers(ns: NS) {
             if (ns.getHackingLevel() > 48) {
                 //brute ssh is not available below 48
 
-                const hackQueue = rootOptions.slice(0, reqPorts);
+                try {
+                    const hackQueue = rootOptions.slice(0, reqPorts);
 
-                for (const hackMethod of hackQueue) {
-                    //ns.print(hackMethod);
-                    hackTargetWithMethod(target, hackMethod);
+                    for (const hackMethod of hackQueue) {
+                        //ns.print(hackMethod);
+                        hackTargetWithMethod(target, hackMethod);
+                    }
+                } catch (error) {
+                    //do nothing
                 }
+            }
+
+            const server = ns.getServer(target);
+            if (server.numOpenPortsRequired > server.openPortCount) {
+                continue;
             }
 
             ns.nuke(target);
@@ -97,27 +106,22 @@ export function getRootedServers(ns: NS) {
     function hackTargetWithMethod(target: string, method: string) {
         switch (method) {
             case "brutessh":
-                ns.print("Hacking ", target, " with brutessh...");
                 ns.brutessh(target);
                 break;
 
             case "ftpcrack":
-                ns.print("Hacking ", target, " with ftpcrack...");
                 ns.ftpcrack(target);
                 break;
 
             case "relaysmtp":
-                ns.print("Hacking ", target, " with relay smtp...");
                 ns.relaysmtp(target);
                 break;
 
             case "http":
-                ns.print("Hacking ", target, " with http...");
                 ns.httpworm(target);
                 break;
 
             case "sql":
-                ns.print("Hacking ", target, " with sql...");
                 ns.sqlinject(target);
                 break;
 

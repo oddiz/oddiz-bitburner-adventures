@@ -1,6 +1,6 @@
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { NS, Server } from "/typings/Bitburner";
-import { MINIMUM_RAM_TO_BUY, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, SERVER_MAINTAINER_TICK_INTERVAL } from "/utils/constants";
 import { getRemoteServers } from "/utils/getRemoteServers";
 import { sleep } from "/utils/sleep";
 
@@ -40,19 +40,26 @@ export class ServerMaintainer {
         const maxPurchasedServers = this.ns.getPurchasedServerLimit();
         const logger = new SMLogger(this.ns);
 
-        const minimumRamMult = Math.log2(MINIMUM_RAM_TO_BUY);
+        const homeServer = this.ns.getServer("home");
+        const minimumRamMult = Math.log2(homeServer.maxRam);
+
         let weakestServer: Server;
         while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
             try {
                 //cleanup servers marked for delete if ready
                 for (const hostname of this.serversMarkedForDelete) {
-                    const serverInfo = this.ns.getServer(hostname);
+                    try {
+                        const serverInfo = this.ns.getServer(hostname);
 
-                    if (serverInfo.ramUsed === 0) {
-                        const isSuccessful = this.ns.deleteServer(hostname);
-                        if (isSuccessful) {
-                            this.serversMarkedForDelete.delete(hostname);
+                        if (serverInfo.ramUsed === 0) {
+                            const isSuccessful = this.ns.deleteServer(hostname);
+                            if (isSuccessful) {
+                                this.serversMarkedForDelete.delete(hostname);
+                            }
                         }
+                    } catch (error) {
+                        //server is already killed I guess??
+                        this.serversMarkedForDelete.delete(hostname);
                     }
                 }
 
@@ -60,23 +67,21 @@ export class ServerMaintainer {
                 const allRemoteServers = getRemoteServers(this.ns);
                 weakestServer = allRemoteServers.sort((a, b) => a.maxRam - b.maxRam)[0];
 
-                const lowestRam = weakestServer.maxRam;
-                const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 1, minimumRamMult);
+                const lowestRam = weakestServer.maxRam || 2;
+                const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 2, minimumRamMult);
                 //if we are at server capacity
                 if (allRemoteServers.length === maxPurchasedServers) {
                     //cleanup mode
-                    if (calculateRamSize(this.ns, playerMoney, 1) >= 2 ** targetRamMultiplier) {
+                    if (mostRamSizeForMoney(this.ns, playerMoney, 1) >= 2 ** targetRamMultiplier) {
                         logger.updateMessage(`Deleting server ${weakestServer.hostname} to make room for better one`);
                         this.serversMarkedForDelete.add(weakestServer.hostname);
                     }
-
-                    //this.ns.deleteServer()
                 }
 
-                const ramSize = calculateRamSize(this.ns, playerMoney);
+                const ramSize = mostRamSizeForMoney(this.ns, playerMoney);
 
                 if (ramSize) {
-                    const serverName = `${Math.floor(Math.random() * 10000)}-${ramSize}GB`;
+                    const serverName = `${Math.floor(Math.random() * 100)}-${ramSize}GB`;
 
                     const hostname = this.ns.purchaseServer(serverName, ramSize);
                     if (hostname !== "") {
@@ -88,10 +93,8 @@ export class ServerMaintainer {
             } catch (error) {
                 if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home"))
                     console.error("Error inside Server Maintainer Loop\n" + JSON.stringify(error, null, 2));
-
-                break;
             }
-            await sleep(5000);
+            await sleep(SERVER_MAINTAINER_TICK_INTERVAL);
         }
 
         return;
@@ -107,20 +110,23 @@ export class ServerMaintainer {
     }
 }
 
-function calculateRamSize(ns, playerMoney, budgetRatio = 1) {
+function mostRamSizeForMoney(ns: NS, playerMoney, budgetRatio = 1) {
+    const MAX_RAM_MULTIPLIER = 20;
     let ramMultiplier = 1;
 
-    let serverCost = ns.getPurchasedServerCost(2 ** ramMultiplier);
+    const serverCost = ns.getPurchasedServerCost(2 ** ramMultiplier);
 
     if (serverCost > playerMoney * budgetRatio) {
-        return false;
-    }
-    while (serverCost < playerMoney * budgetRatio) {
-        ramMultiplier++;
-        serverCost = ns.getPurchasedServerCost(2 ** ramMultiplier);
+        return 2;
     }
 
-    return 2 ** (ramMultiplier - 1);
+    let maximumServerCost = serverCost;
+    while (maximumServerCost < playerMoney * budgetRatio) {
+        ramMultiplier++;
+        maximumServerCost = ns.getPurchasedServerCost(2 ** ramMultiplier);
+    }
+
+    return 2 ** Math.min(ramMultiplier - 1, MAX_RAM_MULTIPLIER);
 }
 
 interface SMInfo {
@@ -165,7 +171,7 @@ class SMLogger {
             )}$`
         );
         this.ns.print(`Money available: ${this.ns.nFormat(SMInfo.playerMoney, "0,0")}$`);
-        this.ns.print(`Currently can buy: ${calculateRamSize(this.ns, SMInfo.playerMoney, 1)}GB`);
+        this.ns.print(`Currently can buy: ${mostRamSizeForMoney(this.ns, SMInfo.playerMoney, 1)}GB`);
 
         this.latestMessage && this.latestMessageTime
             ? this.ns.print(`[${this.latestMessageTime}] Latest message: ${this.latestMessage}`)

@@ -1,8 +1,8 @@
 {
-	"bitburner.authToken": "LHSe+S+0ym4CLQ8p8Jf7ACVrXjvAKynMSlw6KnMWiXFqH1cYxKvFqLecOszW5E1P",
-	"bitburner.fileWatcher.enable": true,
-	"bitburner.scriptRoot": "./build",
-	"bitburner.showFileWatcherEnabledNotification": false,
-	"bitburner.showPushSuccessNotification": false,
-	"prettier.tabWidth": 4
+    "bitburner.authToken": "LHSe+S+0ym4CLQ8p8Jf7ACVrXjvAKynMSlw6KnMWiXFqH1cYxKvFqLecOszW5E1P",
+    "bitburner.fileWatcher.enable": true,
+    "bitburner.scriptRoot": "./build",
+    "bitburner.showFileWatcherEnabledNotification": false,
+    "bitburner.showPushSuccessNotification": true,
+    "prettier.tabWidth": 4
 }

@@ -5,7 +5,6 @@ import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { getRemoteServers } from "/utils/getRemoteServers";
 
 import { killAll } from "/utils/killAll";
-import { sleep } from "/utils/sleep";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
 
 export interface RemotesWithRamInfo {
@@ -89,7 +88,7 @@ export class ServerManager {
         this.log("Starting server maintainer...");
         this.serverMaintainer.init();
 
-        this.totalRam = await this.getTotalRam();
+        this.totalRam = this.getTotalRam();
         //this.log(`Total RAM: ${this.totalRam}GB`);
 
         return true;
@@ -98,7 +97,7 @@ export class ServerManager {
     clearCommandQueue() {
         this.commandQueue = [];
     }
-    async processCommands() {
+    processCommands() {
         this.processingQueue = false;
 
         try {
@@ -107,7 +106,7 @@ export class ServerManager {
             }
             this.processingQueue = true;
 
-            for (const command of [...this.commandQueue]) {
+            for (const command of this.commandQueue) {
                 const now = Date.now();
                 if (now > command.latestExecTime) {
                     console.log("Too late to execute command! Server manager is lagging!");
@@ -131,7 +130,7 @@ export class ServerManager {
 
                     task.dispatchTime = dispatchTime;
 
-                    const execResult = await this.executeTask.bind(this)(task);
+                    const execResult = this.executeTask.bind(this)(task);
 
                     execResults.push(execResult);
                 }
@@ -150,7 +149,8 @@ export class ServerManager {
                                 remoteServer.hostname,
                                 result.task.target,
                                 String(result.task.executeTime),
-                                String(result.task.dispatchTime)
+                                String(result.task.dispatchTime),
+                                String(result.task.commandType === "readify" ? true : false)
                             );
 
                             if (!killResult) {
@@ -175,7 +175,7 @@ export class ServerManager {
 
         return true;
     }
-    async executeTask(task: Task): Promise<ExecuteTaskReturn> {
+    executeTask(task: Task): ExecuteTaskReturn {
         try {
             //get ram status
             const ramInfo = this.getAvailableRam();
@@ -209,16 +209,6 @@ export class ServerManager {
                     continue;
                 }
 
-                //check if server has 0 security level if not wait until it has
-                if (task.commandType === "trio") {
-                    while (
-                        this.ns.getServerSecurityLevel(activeTask.target) -
-                            this.ns.getServerMinSecurityLevel(activeTask.target) >
-                        0.001
-                    ) {
-                        await sleep(50);
-                    }
-                }
                 const threadsToLaunch = activeTask.threads;
                 const execResult = this.ns.exec(
                     `/payloads/${activeTask.op}.js`,
@@ -226,7 +216,8 @@ export class ServerManager {
                     threadsToLaunch,
                     activeTask.target,
                     String(activeTask.executeTime),
-                    String(activeTask.dispatchTime)
+                    String(activeTask.dispatchTime),
+                    task.commandType === "readify" ? true : false
                 );
 
                 if (execResult) {
@@ -244,7 +235,9 @@ export class ServerManager {
                             `exec(${`/payloads/${activeTask.op}.js`}, ${server.hostname}, ${Math.min(
                                 serverThreadCap,
                                 activeTask.threads
-                            )}, ${activeTask.target}, ${activeTask.executeTime} )`
+                            )}, ${activeTask.target}, ${String(activeTask.executeTime)}i ${String(
+                                activeTask.dispatchTime
+                            )}, ${task.commandType === "readify" ? true : false} )`
                     );
                     console.warn("Task:\n" + JSON.stringify(activeTask));
                     console.warn("Server RAM Info: " + JSON.stringify(server));
@@ -275,7 +268,6 @@ export class ServerManager {
                     usedServers: usedServers,
                     message: "Task couldn't find enough RAM to execute!",
                 };
-                await this.getTotalRam().catch((err) => console.log(err));
                 return response;
             }
         } catch (error) {
@@ -290,7 +282,7 @@ export class ServerManager {
         }
     }
 
-    async getTotalRam() {
+    getTotalRam() {
         const servers = this.refreshRemoteServers();
         let totalRam = 0;
         for (const server of servers) {
@@ -332,33 +324,31 @@ export class ServerManager {
     }
 
     refreshRemoteServers() {
-        this.remoteServers = [...getRemoteServers(this.ns)];
+        this.remoteServers = getRemoteServers(this.ns);
 
-        if (this.remoteServers.every((server) => server.hostname === "home")) {
+        const homeServer = this.ns.getServer("home");
+        const homeServerRam = homeServer.maxRam;
+        const homeServerCpuCount = homeServer.cpuCores;
+
+        const remoteServerTotalRam = this.remoteServers.reduce((acc, cur) => acc + cur.maxRam, 0);
+
+        if (remoteServerTotalRam < homeServerRam * homeServerCpuCount) {
             this.homeServer = true;
             this.homeServerCpu = this.ns.getServer("home").cpuCores;
+
+            this.remoteServers = [homeServer];
         }
         return this.remoteServers;
     }
 
-    async addCommand(command: DispatchCommand) {
-        let counter = 0;
-
-        while (this.processingQueue) {
-            if (counter > 20) {
-                console.log("Tried to add command but failed after 20 attempts.");
-                counter++;
-                break;
-            }
-            await sleep(50 + Math.floor(Math.random() * 50));
-        }
+    addCommand(command: DispatchCommand) {
         this.processingQueue = true;
         this.commandQueue.push(command);
         this.processingQueue = false;
 
         return true;
     }
-    async dispatch(command: DispatchCommand) {
+    dispatch(command: DispatchCommand) {
         const now = Date.now();
         const commandInvalid = command.tasks.some((task) => task.threads < 1);
 
@@ -377,9 +367,9 @@ export class ServerManager {
             return false;
         }
 
-        await this.addCommand(command);
+        this.addCommand(command);
 
-        const processResult = await this.processCommands();
+        const processResult = this.processCommands();
 
         return processResult;
     }
