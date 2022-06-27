@@ -126,7 +126,7 @@ export class ThreadManager extends EventEmitter {
                         const rootedServers = getRootedServers(this.ns)
                             .sort((a, b) => this.ns.getWeakenTime(a.hostname) - this.ns.getWeakenTime(b.hostname))
                             .filter((server) => this.ns.getWeakenTime(server.hostname) > DEBUG_MIN_LOOPTIME);
-                        
+
                         if (foundRunningThread?.thread.targetHostname === rootedServers[0].hostname) {
                             this.emit("all_threads_ready");
                             return;
@@ -173,6 +173,7 @@ interface Ops<E> {
     [key: string]: E;
 }
 export interface HackLoopInfo {
+    id?: number;
     hostname: string;
     hackPercentage: number;
     totalThreads: number;

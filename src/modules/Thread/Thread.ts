@@ -5,14 +5,7 @@ import { sleep } from "/utils/sleep";
 
 import { EventEmitter } from "/vendor/eventemitter3/index.js";
 import { HackLoopInfo } from "/modules/ThreadManager/ThreadManager";
-import {
-    COMMAND_EXEC_MIN_INTERVAL,
-    MAX_COMMAND_EXEC_LAG,
-    ODDIZ_HACK_TOOLKIT_SCRIPT_NAME,
-    RAM_ALLOCATION_RATIO,
-    TASK_EXEC_INTERVAL,
-    TASK_EXEC_START_BUFFER,
-} from "/utils/constants";
+import { TASK_EXEC_INTERVAL, TASK_EXEC_START_BUFFER } from "/utils/constants";
 
 /**
  * Runs for every server that we want to hack.
@@ -81,7 +74,7 @@ export class Thread extends EventEmitter {
             if (serverHackLoopData) {
                 console.log("Already have data for this hack percentage");
 
-                this.startLoop(serverHackLoopData);
+                this.deployPayload(serverHackLoopData);
 
                 return;
             }
@@ -157,12 +150,16 @@ export class Thread extends EventEmitter {
 
             if (isSuccessful) {
                 //server is ready time to start perfect hack loop
-                this.startLoop(newHackLoopData);
+                this.deployPayload(newHackLoopData);
 
                 return;
             }
             console.warn("Target weren't ready after readyTargetForLoop(). isSuccessful: " + isSuccessful);
         }
+    }
+
+    async deployPayload(hackLoopData: HackLoopInfo) {
+        this.serverManager.deployPayload(hackLoopData);
     }
 
     async saveLoopDataToMemory(hackLoopData: HackLoopInfo) {
@@ -201,96 +198,6 @@ export class Thread extends EventEmitter {
 
             return parsedMemory;
         } catch (error) {
-            return null;
-        }
-    }
-    async startLoop(targetLoopInfo: HackLoopInfo) {
-        const spawnHackTrio = () => {
-            try {
-                const opTypes: {
-                    op: string;
-                    time: number;
-                }[] = [];
-                for (const opType in targetLoopInfo.opTimes) {
-                    opTypes.push({
-                        op: opType,
-                        time: targetLoopInfo.opTimes[opType],
-                    });
-                }
-                const { grow, hack, weaken } = targetLoopInfo.opTimes;
-                const loopTime = Math.max(grow, hack, weaken);
-
-                let counter = 2;
-
-                const currentTime = Date.now();
-                const commandType = "trio";
-                //first hack
-                const hackTask: Task = {
-                    commandType: commandType,
-                    target: this.targetHostname,
-                    op: "hack",
-                    threads: targetLoopInfo.opThreads.hack,
-                    executeTime: currentTime + TASK_EXEC_START_BUFFER + loopTime - hack - TASK_EXEC_INTERVAL * counter,
-                    dispatchTime: currentTime,
-                };
-                counter--;
-                //then grow
-                const growTask: Task = {
-                    commandType: commandType,
-                    target: this.targetHostname,
-                    op: "grow",
-                    threads: targetLoopInfo.opThreads.grow,
-                    executeTime: currentTime + TASK_EXEC_START_BUFFER + loopTime - grow - TASK_EXEC_INTERVAL * counter,
-                    dispatchTime: currentTime,
-                };
-                counter--;
-                //finally weaken
-                const weakenTask: Task = {
-                    commandType: commandType,
-                    target: this.targetHostname,
-                    op: "weaken",
-                    threads: targetLoopInfo.opThreads.weaken,
-                    executeTime:
-                        currentTime + TASK_EXEC_START_BUFFER + loopTime - weaken - TASK_EXEC_INTERVAL * counter,
-                    dispatchTime: currentTime,
-                };
-
-                const dispatchCommand: DispatchCommand = {
-                    type: commandType,
-                    tasks: [hackTask, growTask, weakenTask],
-                    latestExecTime: currentTime + 300 + MAX_COMMAND_EXEC_LAG,
-                };
-
-                this.serverManager.dispatch(dispatchCommand);
-            } catch (error) {
-                console.log("Error in spawnHackTrio: " + error);
-            }
-        };
-        console.log("Starting hack loop...");
-        try {
-            const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
-            const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / targetLoopInfo.requiredRam);
-            const calculatedRepeatInt = Math.round(targetLoopInfo.loopTime / repeatCapacity);
-
-            console.log(
-                "Recalculated repeat interval for current RAM specs. Old interval:" +
-                    targetLoopInfo.repeatIntervalSec * 1000 +
-                    "New interval: " +
-                    calculatedRepeatInt
-            );
-            const repeatInt = Math.max(calculatedRepeatInt, COMMAND_EXEC_MIN_INTERVAL);
-
-            while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
-                spawnHackTrio();
-                await sleep(repeatInt * 1.0);
-            }
-            console.log("Script is not running anymore. Terminating thread...");
-
-            return;
-        } catch (error) {
-            if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
-                console.log("Error in startLoop: " + error);
-            }
             return null;
         }
     }

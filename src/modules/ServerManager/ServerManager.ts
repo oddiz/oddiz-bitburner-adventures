@@ -5,7 +5,8 @@ import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { getRemoteServers } from "/utils/getRemoteServers";
 
 import { killAll } from "/utils/killAll";
-import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, PAYLOAD_DIR } from "/utils/constants";
+import { HackLoopInfo } from "/modules/ThreadManager/ThreadManager";
 
 export interface RemotesWithRamInfo {
     servers: ServerRamInfo[];
@@ -92,6 +93,44 @@ export class ServerManager {
         //this.log(`Total RAM: ${this.totalRam}GB`);
 
         return true;
+    }
+
+    async deployPayload(hackLoopData: HackLoopInfo) {
+        try {
+            const remoteServers = this.refreshRemoteServers();
+            const serverWithMostRam = remoteServers.sort((a, b) => b.maxRam - a.maxRam)[0];
+            const payloadSize = this.ns.getScriptRam(PAYLOAD_DIR);
+            const serverThreadCapacity = Math.floor(serverWithMostRam.maxRam / payloadSize);
+            const hackLoopTotalThreads = Object.values(hackLoopData.opThreads).reduce((acc, cur) => acc + cur, 0);
+
+            const deployAmount = Math.floor(serverThreadCapacity / hackLoopTotalThreads);
+            const deployThreads = hackLoopTotalThreads * deployAmount;
+
+            const randomId = Math.floor(Math.random() * 1000000);
+            console.log("Deploying payload...");
+
+            hackLoopData.id = randomId;
+
+            const hackLoopInfoString = JSON.stringify(hackLoopData, null, 2);
+
+            await this.ns.write("hackLoopInfo.txt", hackLoopInfoString, "w");
+            await this.ns.scp("hackLoopInfo.txt", serverWithMostRam.hostname);
+            
+            const execResult = this.ns.exec(
+                PAYLOAD_DIR,
+                serverWithMostRam.hostname,
+                deployThreads,
+                randomId,
+                deployThreads
+            );
+            
+            if (!execResult) {
+                console.log("Failed to deploy payload");
+                return false;
+            }
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     clearCommandQueue() {
@@ -375,12 +414,13 @@ export class ServerManager {
     }
 
     async copyPayloads() {
-        const PAYLOAD_NAMES = ["weaken.js", "grow.js", "hack.js"];
+        const PAYLOAD_NAMES = ["weaken.js", "grow.js", "hack.js", "payload.js"];
         const PAYLOAD_DIR = "/payloads";
 
         for (const server of this.remoteServers) {
             for (const payloadName of PAYLOAD_NAMES) {
                 await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, server.hostname);
+                await this.ns.scp("/utils/constants.js", server.hostname);
             }
         }
     }
