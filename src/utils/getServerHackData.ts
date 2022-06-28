@@ -10,6 +10,7 @@ export interface ServerHackData {
     weakenTime: number;
     money: number;
     maxMoney: number;
+    moneyDiff: number;
     minSec: number;
     curSec: number;
     secDiff: number;
@@ -49,6 +50,7 @@ export function getServerHackData(ns: NS, server: string, cores = 1): ServerHack
         weakenTime: weakenTime,
         money: money,
         maxMoney: maxMoney,
+        moneyDiff: maxMoney - money,
         minSec: minSec,
         curSec: curSec,
         secDiff: secDiff,

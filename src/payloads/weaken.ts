@@ -1,5 +1,5 @@
 import { NS } from "typings/Bitburner";
-
+const MAX_WEAKEN_WAIT_TIME = 1000;
 export async function main(ns: NS) {
     const target = ns.args[0] as string;
     const plannedExecuteTime = (ns.args[1] as number) || 0;
@@ -18,7 +18,7 @@ export async function main(ns: NS) {
     let counter = 0;
     const waitInMs = 20;
     if (!force) {
-        while (getSecurityLevel(ns, target) > 0) {
+        while (getSecurityLevel(ns, target) > 0 && counter < MAX_WEAKEN_WAIT_TIME / 20) {
             await sleep(waitInMs);
             counter++;
         }

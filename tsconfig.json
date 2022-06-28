@@ -12,7 +12,8 @@
             "/modules/*": ["modules/*"],
             "/payloads/*": ["payloads/*"],
             "/vendor/*": ["vendor/*"],
-            "/ui/*": ["ui/*"]
+            "/ui/*": ["ui/*"],
+            "/maintainers/*": ["maintainers/*"],
         },
 
         "outDir": "build/",

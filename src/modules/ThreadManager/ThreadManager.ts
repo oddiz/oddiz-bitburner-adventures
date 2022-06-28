@@ -4,7 +4,7 @@ import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { Thread } from "/modules/Thread/Thread";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
 import { DEBUG_MIN_LOOPTIME, DEBUG_MODE, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
-import { selectBestServerToHack } from "/modules/ThreadManager/selectBestServerToHack";
+import { selectBestServerToHack } from "/modules/ThreadManager/helpers/selectBestServerToHack";
 import { EventEmitter } from "/vendor/eventemitter3/index.js";
 
 export type TargetHackLoopData = HackLoopInfo & {
@@ -52,7 +52,8 @@ export class ThreadManager extends EventEmitter {
                     return;
                 }
                 //this.log(JSON.stringify(calcOutput, null, 4));
-                const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos);
+                const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
+                const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos, totalAvailableRam);
                 if (!selectedTargetLoopInfo) throw new Error("No target found even with default interval!");
 
                 console.log("Selected Target: " + JSON.stringify(selectedTargetLoopInfo, null, 2));
@@ -72,15 +73,13 @@ export class ThreadManager extends EventEmitter {
         try {
             const allThreads = Array.from(this.runningThreads.values()).map((runningThread) => runningThread.thread);
 
-            const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
             const calculatedServerLoopInfos: HackLoopInfo[] = [];
             for (let i = 1; i < 20; i++) {
                 for (const thread of allThreads) {
                     const result = calculateHackLoop(
                         this.ns,
-                        thread.targetServer,
+                        thread.targetHostname,
                         i * 5,
-                        totalAvailableRam,
                         this.serverManager.homeServerCpu || 1
                     );
 
@@ -126,7 +125,7 @@ export class ThreadManager extends EventEmitter {
                         const rootedServers = getRootedServers(this.ns)
                             .sort((a, b) => this.ns.getWeakenTime(a.hostname) - this.ns.getWeakenTime(b.hostname))
                             .filter((server) => this.ns.getWeakenTime(server.hostname) > DEBUG_MIN_LOOPTIME);
-                        
+
                         if (foundRunningThread?.thread.targetHostname === rootedServers[0].hostname) {
                             this.emit("all_threads_ready");
                             return;
@@ -186,5 +185,4 @@ export interface HackLoopInfo {
     opTimes: Ops<number>;
     moneyPerCpuSecFormatted: string;
     moneyPerThreadFormatted: string;
-    repeatIntervalSec: number;
 }

@@ -172,3 +172,11 @@ export function numCycleForGrowthByHackAmt(
     const posthackMoney = Math.floor(prehackMoney * Math.min(1, Math.max(0, 1 - hackProp)));
     return numCycleForGrowthCorrected(server, prehackMoney, posthackMoney, p, cores);
 }
+
+export function moneyWithinHackRange(maxMoney, money, hackPercentage, leeway = 2) {
+    const currentMoneyPercentage = Math.round(money / maxMoney) * 100;
+
+    if (currentMoneyPercentage === 100) return true;
+
+    return hackPercentage - leeway <= currentMoneyPercentage && currentMoneyPercentage <= hackPercentage + leeway;
+}

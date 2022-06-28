@@ -1,4 +1,5 @@
 import { NS } from "typings/Bitburner";
+import { TASK_EXEC_INTERVAL } from "/utils/constants";
 
 export async function main(ns: NS) {
     const target = ns.args[0] as string;
@@ -31,9 +32,15 @@ export async function main(ns: NS) {
     const now = Date.now();
     const nowDate = new Date(now);
 
+    const executeLag = now - plannedExecuteTime;
     ns.print("Executed at: " + ` [${nowDate.toLocaleTimeString()}]`);
-    ns.print("Execute lag: " + (now - plannedExecuteTime) + "ms");
-    await ns.grow(target);
+    ns.print("Execute lag: " + executeLag + "ms");
+
+    if (executeLag > TASK_EXEC_INTERVAL) {
+        console.warn("grow.js couldn't execute because lag was too high. Lag: " + executeLag + "ms");
+    } else {
+        await ns.grow(target);
+    }
 }
 
 function sleep(ms: number) {

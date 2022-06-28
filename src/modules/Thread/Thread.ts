@@ -13,6 +13,8 @@ import {
     TASK_EXEC_INTERVAL,
     TASK_EXEC_START_BUFFER,
 } from "/utils/constants";
+import { calculateHackLoop } from "/utils/calculateHackLoop";
+import { moneyWithinHackRange } from "/modules/Thread/ThreadHelpers";
 
 /**
  * Runs for every server that we want to hack.
@@ -30,6 +32,7 @@ export class Thread extends EventEmitter {
     targetServerHackData: ServerHackData | null;
     serverManager: ServerManager;
     ns: NS;
+    initialHackLoopData: HackLoopInfo | null;
     constructor(ns: NS, ServerManager: ServerManager, hostname: string) {
         super();
 
@@ -42,6 +45,8 @@ export class Thread extends EventEmitter {
             this.targetHostname,
             this.serverManager.homeServerCpu || 1
         );
+
+        this.initialHackLoopData = null;
 
         this.run();
     }
@@ -60,7 +65,7 @@ export class Thread extends EventEmitter {
                 }
             })
             .catch((err) => {
-                console.log("Error in Thread.run() :" + err);
+                console.log("Error in Thread.run() :" + JSON.stringify(err));
             });
     }
 
@@ -74,14 +79,16 @@ export class Thread extends EventEmitter {
             return;
         }
 
-        const hackLoopMemory = await this.getLoopDataFromMemory();
+        this.initialHackLoopData = hackLoopData;
+
+        const hackLoopMemory = false; // await this.getLoopDataFromMemory();
         if (hackLoopMemory) {
             const serverHackLoopData = hackLoopMemory?.[this.targetHostname]?.[hackLoopData.hackPercentage];
 
             if (serverHackLoopData) {
                 console.log("Already have data for this hack percentage");
 
-                this.startLoop(serverHackLoopData);
+                this.startLoop(hackLoopData);
 
                 return;
             }
@@ -204,54 +211,77 @@ export class Thread extends EventEmitter {
             return null;
         }
     }
-    async startLoop(targetLoopInfo: HackLoopInfo) {
+    async startLoop(initialLoopInfo: HackLoopInfo) {
+        const percentage = initialLoopInfo.hackPercentage;
+        let currentHLInfo: HackLoopInfo | null = initialLoopInfo;
+
+        let HLInfoCache: HackLoopInfo = initialLoopInfo;
         const spawnHackTrio = () => {
             try {
+                const hackData = this.getHackData();
+
+                if (hackData.secDiff === 0 && hackData.moneyDiff < hackData.maxMoney * ((percentage - 5) / 100)) {
+                    currentHLInfo = calculateHackLoop(
+                        this.ns,
+                        this.targetHostname,
+                        percentage,
+                        this.serverManager.homeServerCpu || 1
+                    );
+                }
+
+                if (!currentHLInfo) return;
+
+                if (isObjectChanged(HLInfoCache.opThreads, currentHLInfo.opThreads)) {
+                    console.log("Thread info is changed!");
+                    console.log("Old: " + JSON.stringify(HLInfoCache.opThreads, null, 2));
+                    console.log("New: " + JSON.stringify(currentHLInfo.opThreads, null, 2));
+                }
+
+                HLInfoCache = currentHLInfo;
+
                 const opTypes: {
                     op: string;
                     time: number;
                 }[] = [];
-                for (const opType in targetLoopInfo.opTimes) {
+                for (const opType in currentHLInfo.opTimes) {
                     opTypes.push({
                         op: opType,
-                        time: targetLoopInfo.opTimes[opType],
+                        time: currentHLInfo.opTimes[opType],
                     });
                 }
-                const { grow, hack, weaken } = targetLoopInfo.opTimes;
-                const loopTime = Math.max(grow, hack, weaken);
-
-                let counter = 2;
+                const { grow, hack, weaken } = currentHLInfo.opTimes;
 
                 const currentTime = Date.now();
                 const commandType = "trio";
+
+                const weakenExecTime = currentTime + TASK_EXEC_START_BUFFER;
+                const growExecTime = weakenExecTime + (weaken - grow) - TASK_EXEC_INTERVAL;
+                const hackExecTime = growExecTime + (grow - hack) - TASK_EXEC_INTERVAL;
                 //first hack
                 const hackTask: Task = {
                     commandType: commandType,
                     target: this.targetHostname,
                     op: "hack",
-                    threads: targetLoopInfo.opThreads.hack,
-                    executeTime: currentTime + TASK_EXEC_START_BUFFER + loopTime - hack - TASK_EXEC_INTERVAL * counter,
+                    threads: currentHLInfo.opThreads.hack,
+                    executeTime: hackExecTime,
                     dispatchTime: currentTime,
                 };
-                counter--;
                 //then grow
                 const growTask: Task = {
                     commandType: commandType,
                     target: this.targetHostname,
                     op: "grow",
-                    threads: targetLoopInfo.opThreads.grow,
-                    executeTime: currentTime + TASK_EXEC_START_BUFFER + loopTime - grow - TASK_EXEC_INTERVAL * counter,
+                    threads: currentHLInfo.opThreads.grow,
+                    executeTime: growExecTime,
                     dispatchTime: currentTime,
                 };
-                counter--;
                 //finally weaken
                 const weakenTask: Task = {
                     commandType: commandType,
                     target: this.targetHostname,
                     op: "weaken",
-                    threads: targetLoopInfo.opThreads.weaken,
-                    executeTime:
-                        currentTime + TASK_EXEC_START_BUFFER + loopTime - weaken - TASK_EXEC_INTERVAL * counter,
+                    threads: currentHLInfo.opThreads.weaken,
+                    executeTime: weakenExecTime,
                     dispatchTime: currentTime,
                 };
 
@@ -259,6 +289,7 @@ export class Thread extends EventEmitter {
                     type: commandType,
                     tasks: [hackTask, growTask, weakenTask],
                     latestExecTime: currentTime + 300 + MAX_COMMAND_EXEC_LAG,
+                    percentage: percentage,
                 };
 
                 this.serverManager.dispatch(dispatchCommand);
@@ -269,20 +300,38 @@ export class Thread extends EventEmitter {
         console.log("Starting hack loop...");
         try {
             const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
-            const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / targetLoopInfo.requiredRam);
-            const calculatedRepeatInt = Math.round(targetLoopInfo.loopTime / repeatCapacity);
+            const initialRepeatCap = Math.floor(
+                (totalAvailableRam * RAM_ALLOCATION_RATIO) / initialLoopInfo.requiredRam
+            );
+            const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / currentHLInfo.requiredRam);
+            const calculatedRepeatInt = Math.round(currentHLInfo.loopTime / repeatCapacity);
+            const initialRepeatInt = Math.round(currentHLInfo.loopTime / initialRepeatCap);
 
             console.log(
                 "Recalculated repeat interval for current RAM specs. Old interval:" +
-                    targetLoopInfo.repeatIntervalSec * 1000 +
+                    initialRepeatInt +
                     "New interval: " +
                     calculatedRepeatInt
             );
             const repeatInt = Math.max(calculatedRepeatInt, COMMAND_EXEC_MIN_INTERVAL);
 
+            let notInRangeCounter = 0;
             while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
-                spawnHackTrio();
-                await sleep(repeatInt * 1.0);
+                const server = this.ns.getServer(this.targetHostname);
+
+                if (notInRangeCounter > 20) {
+                    await this.readyTargetForLoop();
+                    notInRangeCounter = 0;
+                }
+
+                if (moneyWithinHackRange(server.moneyMax, server.moneyAvailable, percentage, 2)) {
+                    spawnHackTrio();
+                    notInRangeCounter = 0;
+                } else {
+                    console.warn("Didn't spawn hack trio because money is not within range");
+                    notInRangeCounter++;
+                }
+                await sleep(repeatInt * 1.0 + Math.floor(Math.random() * 50));
             }
             console.log("Script is not running anymore. Terminating thread...");
 
@@ -382,4 +431,20 @@ export class Thread extends EventEmitter {
 
 export function isGoldenInfo(serverHackData: ServerHackData): boolean {
     return serverHackData.growthThreadsToMax === 0 && serverHackData.weakenThreadsToMin === 0;
+}
+
+//detects change between objects states
+export function isObjectChanged(oldObject: Record<string, unknown>, newObject: Record<string, unknown>): boolean {
+    if (oldObject === newObject) return false;
+    if (oldObject === null || newObject === null) return true;
+    if (typeof oldObject !== typeof newObject) return true;
+    if (typeof oldObject === "object") {
+        const oldKeys = Object.keys(oldObject);
+        const newKeys = Object.keys(newObject);
+        if (oldKeys.length !== newKeys.length) return true;
+        for (const key of oldKeys) {
+            if (oldObject[key] !== newObject[key]) return true;
+        }
+    }
+    return false;
 }

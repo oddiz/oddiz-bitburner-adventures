@@ -1,22 +1,22 @@
 import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
 import { numCycleForGrowthByHackAmt } from "/modules/Thread/ThreadHelpers";
 import { getPayloadSizes } from "/utils/getPayloadSizes";
-import { NS, Server } from "/typings/Bitburner";
-import { RAM_ALLOCATION_RATIO } from "/utils/constants";
+import { NS } from "/typings/Bitburner";
 
 /**
- * Calculates hack loop trio data. 
- * 
+ * Calculates hack loop trio data.
+ *
  * IMPORTANT: Always assumes server is on max money!
  * @param ns NS from bitburner
  * @param server Server object
  * @param percentage Percentage of money to hack each cycle
  * @param totalAvailableRam Total available RAM of remote servers
- * @param cores 
- * @returns 
+ * @param cores
+ * @returns
  */
-export function calculateHackLoop(ns: NS, server: Server, percentage: number, totalAvailableRam: number, cores = 1) {
+export function calculateHackLoop(ns: NS, hostname: string, percentage: number, cores = 1) {
     try {
+        const server = ns.getServer(hostname);
         const maxMoney = ns.getServerMaxMoney(server.hostname);
 
         // Clamp number between two values
@@ -29,10 +29,13 @@ export function calculateHackLoop(ns: NS, server: Server, percentage: number, to
         const reqGrowThreads = Math.ceil(ns.growthAnalyze(server.hostname, growRatio, 1));
         */
 
-        const reqHackThreads = Math.floor(ns.hackAnalyzeThreads(server.hostname, maxMoney * (safePercentage / 100)));
+        const reqHackThreads = Math.floor(
+            ns.hackAnalyzeThreads(server.hostname, server.moneyAvailable * (safePercentage / 100))
+        );
         const hackSecIncrease = ns.hackAnalyzeSecurity(reqHackThreads, server.hostname);
 
-        const reqGrowThreads = numCycleForGrowthByHackAmt(server, percentage / 100, maxMoney, ns.getPlayer(), cores);
+        const player = ns.getPlayer();
+        const reqGrowThreads = Math.ceil(numCycleForGrowthByHackAmt(server, percentage / 100, maxMoney, player, cores));
         const growSecIncrease = ns.growthAnalyzeSecurity(reqGrowThreads, undefined, cores);
 
         const reqWeakenThreads = calculateWeakenThreads(ns, hackSecIncrease + growSecIncrease, cores);
@@ -50,7 +53,6 @@ export function calculateHackLoop(ns: NS, server: Server, percentage: number, to
             reqGrowThreads * scriptSizes.grow +
             reqHackThreads * scriptSizes.hack +
             reqWeakenThreads * scriptSizes.weaken;
-        const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / reqRam);
         return {
             cores: cores,
             hostname: server.hostname,
@@ -63,7 +65,6 @@ export function calculateHackLoop(ns: NS, server: Server, percentage: number, to
             moneyPerCpuSec: Math.floor(income / (loopTime / 1000)),
             moneyPerThreadFormatted: ns.nFormat(Math.floor(income / totalThreads), "0,0"),
             moneyPerCpuSecFormatted: ns.nFormat(Math.floor(income / (loopTime / 1000)), "0,0"),
-            repeatIntervalSec: loopTime / 1000 / repeatCapacity,
             opThreads: {
                 hack: reqHackThreads,
                 grow: reqGrowThreads,

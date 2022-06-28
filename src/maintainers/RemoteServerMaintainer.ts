@@ -67,7 +67,7 @@ export class ServerMaintainer {
                 const allRemoteServers = getRemoteServers(this.ns);
                 weakestServer = allRemoteServers.sort((a, b) => a.maxRam - b.maxRam)[0];
 
-                const lowestRam = weakestServer.maxRam || 2;
+                const lowestRam = weakestServer?.maxRam || 2;
                 const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 2, minimumRamMult);
                 //if we are at server capacity
                 if (allRemoteServers.length === maxPurchasedServers) {
@@ -80,7 +80,7 @@ export class ServerMaintainer {
 
                 const ramSize = mostRamSizeForMoney(this.ns, playerMoney);
 
-                if (ramSize) {
+                if (ramSize >= 2 ** targetRamMultiplier) {
                     const serverName = `${Math.floor(Math.random() * 100)}-${ramSize}GB`;
 
                     const hostname = this.ns.purchaseServer(serverName, ramSize);

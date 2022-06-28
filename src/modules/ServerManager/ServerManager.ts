@@ -1,11 +1,11 @@
 import { NS, Server } from "typings/Bitburner";
 import { commandCanRun } from "/modules/ServerManager/commandCanRun";
-import { ServerMaintainer } from "/modules/ServerMaintainer/ServerMaintainer";
+import { ServerMaintainer } from "/maintainers/RemoteServerMaintainer";
 import { getPayloadSizes } from "/utils/getPayloadSizes";
 import { getRemoteServers } from "/utils/getRemoteServers";
 
 import { killAll } from "/utils/killAll";
-import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { COMMAND_EXEC_MIN_INTERVAL, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
 
 export interface RemotesWithRamInfo {
     servers: ServerRamInfo[];
@@ -19,10 +19,19 @@ export interface Task {
     executeTime: number;
     dispatchTime: number;
 }
-export interface DispatchCommand {
-    type: "trio" | "readify";
+export type DispatchCommand = ReadifyCommand | TrioCommand
+
+type ReadifyCommand = {
+    type: "readify";
     tasks: Task[];
     latestExecTime: number;
+}
+
+type TrioCommand = {
+    type: "trio";
+    tasks: Task[];
+    latestExecTime: number;
+    percentage: number;
 }
 
 interface ServerRamInfo {
@@ -56,9 +65,12 @@ export class ServerManager {
     serverMaintainer: ServerMaintainer;
     homeServer: boolean;
     homeServerCpu: number | null;
+    interval: NodeJS.Timer | undefined;
 
     constructor(private ns: NS) {
         this.ns = ns;
+
+        this.interval;
 
         this.serverMaintainer = new ServerMaintainer(this.ns, this);
         this.remoteServers = [];
@@ -91,6 +103,8 @@ export class ServerManager {
         this.totalRam = this.getTotalRam();
         //this.log(`Total RAM: ${this.totalRam}GB`);
 
+        this.interval = setInterval(this.processCommands.bind(this), COMMAND_EXEC_MIN_INTERVAL / 2);
+
         return true;
     }
 
@@ -98,15 +112,14 @@ export class ServerManager {
         this.commandQueue = [];
     }
     processCommands() {
-        this.processingQueue = false;
-
         try {
             if (this.commandQueue.length === 0) {
+                this.processingQueue = false;
                 return false;
             }
             this.processingQueue = true;
 
-            for (const command of this.commandQueue) {
+            for (const [i, command] of this.commandQueue.entries()) {
                 const now = Date.now();
                 if (now > command.latestExecTime) {
                     console.log("Too late to execute command! Server manager is lagging!");
@@ -121,6 +134,8 @@ export class ServerManager {
 
                 if (!commandCanRun(this.ns, command, serversWithRamInfo) && command.type === "trio") {
                     console.log("Not enough RAM to execute command! Better recalculate the loop. Discarding...");
+
+                    this.commandQueue.splice(i, 1);
 
                     continue;
                 }
@@ -167,6 +182,7 @@ export class ServerManager {
 
             return true;
         } catch (error) {
+            clearInterval(this.interval);
             if (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home"))
                 console.log("Error in processTasks loop: " + error);
 
@@ -379,6 +395,7 @@ export class ServerManager {
         const PAYLOAD_DIR = "/payloads";
 
         for (const server of this.remoteServers) {
+            await this.ns.scp("/utils/constants.js", server.hostname);
             for (const payloadName of PAYLOAD_NAMES) {
                 await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, server.hostname);
             }
