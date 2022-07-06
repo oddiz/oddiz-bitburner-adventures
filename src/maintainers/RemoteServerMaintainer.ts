@@ -1,7 +1,7 @@
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { NS, Server } from "/typings/Bitburner";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, SERVER_MAINTAINER_TICK_INTERVAL } from "/utils/constants";
-import { getRemoteServers } from "/utils/getRemoteServers";
+import { getRemoteServers } from "/utils/getters";
 import { sleep } from "/utils/sleep";
 
 const loggingEnabled = false;
@@ -41,10 +41,17 @@ export class ServerMaintainer {
         const logger = new SMLogger(this.ns);
 
         const homeServer = this.ns.getServer("home");
-        const minimumRamMult = Math.log2(homeServer.maxRam);
+
+        const cheatyWindow = eval("window") as Window;
 
         let weakestServer: Server;
         while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
+            const maintenanceActive = cheatyWindow.localStorage.getItem("remoteMaintenanceActive") === "true";
+
+            if (!maintenanceActive) {
+                await sleep(SERVER_MAINTAINER_TICK_INTERVAL);
+                continue;
+            }
             try {
                 //cleanup servers marked for delete if ready
                 for (const hostname of this.serversMarkedForDelete) {
@@ -55,6 +62,7 @@ export class ServerMaintainer {
                             const isSuccessful = this.ns.deleteServer(hostname);
                             if (isSuccessful) {
                                 this.serversMarkedForDelete.delete(hostname);
+                                this.serverManager.refreshRemoteServers();
                             }
                         }
                     } catch (error) {
@@ -67,25 +75,43 @@ export class ServerMaintainer {
                 const allRemoteServers = getRemoteServers(this.ns);
                 weakestServer = allRemoteServers.sort((a, b) => a.maxRam - b.maxRam)[0];
 
-                const lowestRam = weakestServer?.maxRam || 2;
-                const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 2, minimumRamMult);
-                //if we are at server capacity
-                if (allRemoteServers.length === maxPurchasedServers) {
-                    //cleanup mode
-                    if (mostRamSizeForMoney(this.ns, playerMoney, 1) >= 2 ** targetRamMultiplier) {
-                        logger.updateMessage(`Deleting server ${weakestServer.hostname} to make room for better one`);
-                        this.serversMarkedForDelete.add(weakestServer.hostname);
-                    }
+                //check we reached remote limit
+                const maxRemoteRamAllowed = this.ns.getPurchasedServerMaxRam();
+                const maxRemoteNumAllowed = this.ns.getPurchasedServerLimit();
+
+                if (
+                    allRemoteServers.length === maxRemoteNumAllowed &&
+                    allRemoteServers.every((server) => server.maxRam === maxRemoteRamAllowed)
+                ) {
+                    //we reached max remote servers
+                    console.log("Maximum remote servers with maximum RAM reached");
+                    break;
                 }
+
+                const lowestRam = weakestServer?.maxRam || 2;
+                const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 1, Math.log2(homeServer.maxRam));
+                //if we are at server capacity
 
                 const ramSize = mostRamSizeForMoney(this.ns, playerMoney);
 
-                if (ramSize >= 2 ** targetRamMultiplier) {
+                if (ramSize >= (2 ** targetRamMultiplier || maxRemoteRamAllowed)) {
                     const serverName = `${Math.floor(Math.random() * 100)}-${ramSize}GB`;
+
+                    if (allRemoteServers.length === maxPurchasedServers) {
+                        //cleanup mode
+                        if (mostRamSizeForMoney(this.ns, playerMoney, 1) >= 2 ** targetRamMultiplier) {
+                            logger.updateMessage(
+                                `Deleting server ${weakestServer.hostname} to make room for better one`
+                            );
+                            this.serversMarkedForDelete.add(weakestServer.hostname);
+                        }
+                    }
 
                     const hostname = this.ns.purchaseServer(serverName, ramSize);
                     if (hostname !== "") {
                         console.log("Purchased new server: " + hostname);
+                        this.serverManager.refreshRemoteServers();
+                        await this.serverManager.copyPayloads();
                     }
                 }
 

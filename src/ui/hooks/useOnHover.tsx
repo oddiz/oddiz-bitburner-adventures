@@ -1,5 +1,5 @@
-import { NS } from "/typings/Bitburner";
-const React = window.React;
+const cheatyWindow = eval("window") as Window & typeof globalThis;
+const React = cheatyWindow.React;
 const { useState, useEffect } = React;
 
 export const useOnHover = (ref: React.RefObject<HTMLElement>) => {

@@ -1,5 +1,5 @@
 import { NS } from "/typings/Bitburner";
-import { getRootedServers } from "/utils/getRootedServers";
+import { getRootedServers } from "/utils/getters";
 
 export async function main(ns: NS) {
     await killAll(ns);
@@ -20,5 +20,5 @@ export async function killAll(ns: NS) {
     const payloadDir = "/payloads/";
     for (const payloadName of payloadNames) {
         ns.scriptKill(payloadDir + payloadName, "home");
-    } 
+    }
 }

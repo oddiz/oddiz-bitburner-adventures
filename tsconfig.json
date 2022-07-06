@@ -13,7 +13,7 @@
             "/payloads/*": ["payloads/*"],
             "/vendor/*": ["vendor/*"],
             "/ui/*": ["ui/*"],
-            "/maintainers/*": ["maintainers/*"],
+            "/maintainers/*": ["maintainers/*"]
         },
 
         "outDir": "build/",
@@ -25,6 +25,7 @@
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true
     },
+
     "exclude": ["hackLoopMemoryExample.json", "build/**/*"],
     "include": ["src/**/*"]
 }

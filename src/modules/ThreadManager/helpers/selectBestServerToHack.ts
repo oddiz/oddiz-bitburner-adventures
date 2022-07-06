@@ -1,6 +1,5 @@
-import { calculateDefaultIntervalPerformance } from "/modules/ThreadManager/helpers/calculateDefaultIntervalPerformance";
 import { HackLoopInfo } from "../ThreadManager";
-import { COMMAND_EXEC_MIN_INTERVAL, DEBUG_MIN_LOOPTIME, DEBUG_MODE, RAM_ALLOCATION_RATIO } from "/utils/constants";
+import { DEBUG_MIN_LOOPTIME, DEBUG_MODE, RAM_ALLOCATION_RATIO } from "/utils/constants";
 
 export function selectBestServerToHack(
     serverHackLoopInfos: HackLoopInfo[],
@@ -26,44 +25,20 @@ export function selectBestServerToHack(
         if (
             !serverHackLoopInfos.every(
                 (hackLoopInfo) =>
-                    typeof hackLoopInfo.moneyPerThread === "number" && typeof hackLoopInfo.moneyPerCpuSec === "number"
+                    typeof hackLoopInfo.moneyPerThread === "number" && typeof hackLoopInfo.moneyPerMs === "number"
             )
         ) {
-            throw "Not every server has moneyPerThread and moneyPerCpuSec";
+            throw "Not every server has moneyPerThread and moneyPerMs";
         }
 
-        const intervaledHLInfos = serverHackLoopInfos.map((HLInfo) => {
-            const repeatCapacity = Math.floor((totalAvailableRam * RAM_ALLOCATION_RATIO) / HLInfo.requiredRam);
+        //find for default interval
+        console.log("Couldn't find suitable target with given filters. Going for default interval.");
 
-            const repeatInterval = HLInfo.loopTime / repeatCapacity;
+        const sortedForDefaultInterval = [...serverHackLoopInfos]
+            .sort((a, b) => b.moneyPerMs - a.moneyPerMs)
+            .filter((info) => info.requiredRam < totalAvailableRam * RAM_ALLOCATION_RATIO);
 
-            return {
-                ...HLInfo,
-                repeatInterval: repeatInterval,
-            };
-        });
-
-        const filteredForInterval = intervaledHLInfos.filter(
-            (hackLoopInfo) => hackLoopInfo.repeatInterval > COMMAND_EXEC_MIN_INTERVAL
-        );
-
-        if (filteredForInterval.length === 0) {
-            //find for default interval
-            console.log("Couldn't find suitable target with given filters. Going for default interval.");
-
-            const sortedForDefaultInterval = [...serverHackLoopInfos].sort(
-                (a, b) =>
-                    calculateDefaultIntervalPerformance(b, totalAvailableRam) -
-                    calculateDefaultIntervalPerformance(a, totalAvailableRam)
-            );
-
-            return sortedForDefaultInterval[0];
-        }
-        serverHackLoopInfos
-            .sort((a, b) => b.moneyPerCpuSec - a.moneyPerCpuSec)
-            .sort((a, b) => b.moneyPerThread - a.moneyPerThread);
-
-        return [...intervaledHLInfos].filter((output) => output.repeatInterval > COMMAND_EXEC_MIN_INTERVAL)[0];
+        return sortedForDefaultInterval[0];
     } catch (error) {
         console.warn("Error while selecting best server: " + error);
 

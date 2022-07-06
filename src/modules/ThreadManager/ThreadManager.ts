@@ -1,5 +1,5 @@
 import { NS, Server } from "typings/Bitburner";
-import { getRootedServers } from "/utils/getRootedServers";
+import { getRootedServers } from "/utils/getters";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { Thread } from "/modules/Thread/Thread";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
@@ -52,7 +52,7 @@ export class ThreadManager extends EventEmitter {
                     return;
                 }
                 //this.log(JSON.stringify(calcOutput, null, 4));
-                const totalAvailableRam = this.serverManager.getAvailableRam().totalAvailableRam;
+                const totalAvailableRam = this.serverManager.getRamInfos().totalAvailableRam;
                 const selectedTargetLoopInfo = selectBestServerToHack(calculatedServerLoopInfos, totalAvailableRam);
                 if (!selectedTargetLoopInfo) throw new Error("No target found even with default interval!");
 
@@ -104,6 +104,7 @@ export class ThreadManager extends EventEmitter {
 
         for (const target of targets) {
             const newThread = new Thread(this.ns, this.serverManager, target);
+            newThread.run();
 
             const runningThread: RunningThread = { thread: newThread, ready: false };
 
@@ -172,6 +173,7 @@ interface Ops<E> {
     [key: string]: E;
 }
 export interface HackLoopInfo {
+    cores: number;
     hostname: string;
     hackPercentage: number;
     totalThreads: number;
@@ -179,7 +181,8 @@ export interface HackLoopInfo {
     loopTime: number;
     requiredRam: number;
     moneyPerThread: number;
-    moneyPerCpuSec: number;
+    moneyPerMs: number;
+    repeatInterval: number;
     goldenInfo: boolean;
     opThreads: Ops<number>;
     opTimes: Ops<number>;

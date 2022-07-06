@@ -38,42 +38,43 @@ export function logServerDetails(ns: NS, server: string) {
     const growTime = ns.getGrowTime(server);
     const weakenTime = ns.getWeakenTime(server);
 
-    ns.print(`${server}:`);
-    ns.print(
-        `Money: ${ns.nFormat(money, "$0.000a")} / ${ns.nFormat(maxMoney, "$0.000a")} (${(
-            (money / maxMoney) *
-            100
-        ).toFixed(2)}%)`
-    );
-    ns.print(`security: +${(sec - minSec).toFixed(2)}\n`);
+    let printString = `${server}:\n`;
+    printString += `Money: ${ns.nFormat(money, "$0.000a")} / ${ns.nFormat(maxMoney, "$0.000a")} (${(
+        (money / maxMoney) *
+        100
+    ).toFixed(2)}%)\n`;
+
+    printString += `security: +${(sec - minSec).toFixed(2)}\n\n`;
 
     const curMoneyHackingThreadsAmount = Math.ceil(ns.hackAnalyzeThreads(server, money));
     const hackAnalyzeResult = ns.hackAnalyze(server);
     const moneyPerHack = Math.floor(money * hackAnalyzeResult);
-    ns.print(
-        `hack____: ${ns.tFormat(hackTime)} (t=${curMoneyHackingThreadsAmount}),\nSec increase: ${ns.hackAnalyzeSecurity(
-            curMoneyHackingThreadsAmount,
-            server
-        )}\n`
-    );
+
+    printString += `hack____: ${ns.tFormat(
+        hackTime
+    )} (t=${curMoneyHackingThreadsAmount}),\nSec increase: ${ns.hackAnalyzeSecurity(
+        curMoneyHackingThreadsAmount,
+        server
+    )}\n\n`;
 
     const growthThreadsAmount = Math.ceil(ns.growthAnalyze(server, maxMoney / money));
     const maxGrowthSecIncrease = ns.growthAnalyzeSecurity(growthThreadsAmount, server, 1);
-    ns.print(`grow____: ${ns.tFormat(growTime)} (t=${growthThreadsAmount}),\nSec increase: ${maxGrowthSecIncrease}\n`);
 
-    ns.print(
-        `weaken__: ${ns.tFormat(weakenTime)} (t=${Math.ceil((sec - minSec) * 20)}) (tAfterGrowWeaken=${Math.ceil(
-            (sec + maxGrowthSecIncrease - minSec) * 20
-        )})\n`
-    );
+    printString += `grow____: ${ns.tFormat(
+        growTime
+    )} (t=${growthThreadsAmount}),\nSec increase: ${maxGrowthSecIncrease}\n\n`;
 
-    ns.print(
-        `Analytics:\n$ per thread: ${moneyPerHack} $\n$ per sec(Hack only) per thread: ${(
-            moneyPerHack /
-            (ns.getHackTime(server) / 1000)
-        ).toFixed(2)}$\n$ per sec per thread(full cycle): ${(
-            moneyPerHack /
-            (Math.max(weakenTime, hackTime, growTime) / 1000)
-        ).toFixed(2)}$`
-    );
+    printString += `weaken__: ${ns.tFormat(weakenTime)} (t=${Math.ceil(
+        (sec - minSec) * 20
+    )}) (tAfterGrowWeaken=${Math.ceil((sec + maxGrowthSecIncrease - minSec) * 20)})\n\n`;
+
+    printString += `Analytics:\n$ per thread: ${moneyPerHack} $\n$ per sec(Hack only) per thread: ${(
+        moneyPerHack /
+        (ns.getHackTime(server) / 1000)
+    ).toFixed(2)}$\n$ per sec per thread(full cycle): ${(
+        moneyPerHack /
+        (Math.max(weakenTime, hackTime, growTime) / 1000)
+    ).toFixed(2)}$\n`;
+
+    ns.print(printString);
 }

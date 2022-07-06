@@ -1,8 +1,9 @@
 import { Dashboard } from "/ui/Dashboard/Dashboard";
 import { NS } from "/typings/Bitburner";
 import { sleep } from "/utils/sleep";
-const React = window.React;
-const ReactDOM = window.ReactDOM;
+const cheatyWindow = eval("window") as Window & typeof globalThis;
+const React = cheatyWindow.React;
+const ReactDOM = cheatyWindow.ReactDOM;
 
 export async function main(ns: NS) {
     ns.disableLog("asleep");
@@ -10,7 +11,7 @@ export async function main(ns: NS) {
         <React.StrictMode>
             <Dashboard ns={ns} />
         </React.StrictMode>,
-        window.document.getElementById("overview-extra-hook-0")
+        cheatyWindow.document.getElementById("overview-extra-hook-0")
     );
     while (ns.scriptRunning("/ui/ui.js", "home")) {
         await ns.asleep(10000);

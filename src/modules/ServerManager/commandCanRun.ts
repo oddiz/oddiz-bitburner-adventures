@@ -1,6 +1,6 @@
 import { DispatchCommand, RemotesWithRamInfo } from "./ServerManager";
 import { NS } from "/typings/Bitburner";
-import { getPayloadSizes } from "/utils/getPayloadSizes";
+import { getPayloadSizes } from "/utils/getters";
 
 export function commandCanRun(ns: NS, command: DispatchCommand, remoteServersWithRamInfo: RemotesWithRamInfo) {
     const scriptSizes = getPayloadSizes(ns);
@@ -9,15 +9,14 @@ export function commandCanRun(ns: NS, command: DispatchCommand, remoteServersWit
 
     let allTasksCanExecute = true;
     for (const task of command.tasks) {
-        const taskRamSize = scriptSizes[task.op] * task.threads;
+        let taskRamSize = scriptSizes[task.op] * task.threads;
 
         let taskCanExecute = false;
         for (const server of servers) {
-            if (server.availableRam > taskRamSize) {
+            taskRamSize -= server.availableRam;
+
+            if (taskRamSize <= 0) {
                 taskCanExecute = true;
-
-                server.availableRam -= taskRamSize;
-
                 break;
             }
         }
@@ -30,3 +29,5 @@ export function commandCanRun(ns: NS, command: DispatchCommand, remoteServersWit
     }
     return allTasksCanExecute;
 }
+
+//TODO maybe simplify this to a simple total available ram check?

@@ -3,8 +3,10 @@ import { killAll } from "/utils/killAll";
 import { Button } from "/ui/Dashboard/Button";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
 import { MonitorInput } from "/ui/Dashboard/MonitorInput";
+import { ToggleSection } from "/ui/Dashboard/ToggleSection";
 
-const React = window.React;
+const cheatyWindow = eval("window") as Window & typeof globalThis;
+const React = cheatyWindow.React;
 
 export interface IDashboardProps {
     ns: NS;
@@ -26,6 +28,7 @@ export const Dashboard = ({ ns }: IDashboardProps) => {
     return (
         <div
             style={{
+                width: "100%",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -41,9 +44,9 @@ export const Dashboard = ({ ns }: IDashboardProps) => {
             >
                 <Button bg="red" title="Kill All!" onButtonClick={killAllClicked} />
                 <Button bg="green" title="Run!" onButtonClick={runClicked} />
-
             </div>
             <MonitorInput ns={ns} />
+            <ToggleSection ns={ns} />
         </div>
     );
 };

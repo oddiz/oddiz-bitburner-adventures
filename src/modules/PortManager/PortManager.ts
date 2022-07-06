@@ -1,6 +1,6 @@
 import { HomeServerPortData } from "types";
 import { NS } from "/typings/Bitburner";
-import { portParse, portStringify, Stringified } from "/utils/json";
+import { parse, stringify, Stringified } from "/utils/json";
 import { sleep } from "/utils/sleep";
 
 export class PortManager {
@@ -13,7 +13,7 @@ export class PortManager {
 
     getPortData(port: number) {
         const dataString = this.ns.readPort(port) as Stringified<HomeServerPortData>;
-        return portParse(dataString);
+        return parse(dataString);
     }
 
     async writePort(port: number, data: HomeServerPortData) {
@@ -24,7 +24,7 @@ export class PortManager {
 
             this.processingPorts = true;
 
-            const stringifiedData = portStringify(data);
+            const stringifiedData = stringify(data);
 
             await this.ns.writePort(port, stringifiedData);
 

@@ -1,11 +1,13 @@
 import { NS, Server } from "typings/Bitburner";
 import { commandCanRun } from "/modules/ServerManager/commandCanRun";
 import { ServerMaintainer } from "/maintainers/RemoteServerMaintainer";
-import { getPayloadSizes } from "/utils/getPayloadSizes";
-import { getRemoteServers } from "/utils/getRemoteServers";
+import { getPayloadSizes, getRemoteServers } from "/utils/getters";
 
 import { killAll } from "/utils/killAll";
 import { COMMAND_EXEC_MIN_INTERVAL, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { calculateCommandSize } from "/utils/calculateCommandSize";
+import { homeServerActive } from "/utils/homeServerActive";
+import { sleep } from "/utils/sleep";
 
 export interface RemotesWithRamInfo {
     servers: ServerRamInfo[];
@@ -19,20 +21,29 @@ export interface Task {
     executeTime: number;
     dispatchTime: number;
 }
-export type DispatchCommand = ReadifyCommand | TrioCommand
+export type DispatchCommand = ReadifyCommand | TrioCommand | GrowifyCommand;
 
-type ReadifyCommand = {
+export type ReadifyCommand = {
     type: "readify";
     tasks: Task[];
     latestExecTime: number;
-}
+    force: true;
+};
 
-type TrioCommand = {
+export type GrowifyCommand = {
+    type: "growify";
+    tasks: Task[];
+    latestExecTime: number;
+    force: true;
+};
+
+export type TrioCommand = {
     type: "trio";
     tasks: Task[];
     latestExecTime: number;
     percentage: number;
-}
+    force: boolean;
+};
 
 interface ServerRamInfo {
     hostname: string;
@@ -113,6 +124,7 @@ export class ServerManager {
     }
     processCommands() {
         try {
+            this.refreshRemoteServers();
             if (this.commandQueue.length === 0) {
                 this.processingQueue = false;
                 return false;
@@ -123,14 +135,11 @@ export class ServerManager {
                 const now = Date.now();
                 if (now > command.latestExecTime) {
                     console.log("Too late to execute command! Server manager is lagging!");
-
                     console.log("Difference: " + (now - command.latestExecTime));
                     continue;
                 }
 
-                const serversWithRamInfo = this.getAvailableRam();
-
-                //console.log("needed ram: " + neededRam, "total ram: " + availableRam.totalAvailableRam);
+                const serversWithRamInfo = this.getRamInfos();
 
                 if (!commandCanRun(this.ns, command, serversWithRamInfo) && command.type === "trio") {
                     console.log("Not enough RAM to execute command! Better recalculate the loop. Discarding...");
@@ -140,12 +149,14 @@ export class ServerManager {
                     continue;
                 }
                 const execResults: ExecuteTaskReturn[] = [];
+                const id = generateId(16);
+
                 for (const task of command.tasks) {
                     const dispatchTime = Date.now();
 
                     task.dispatchTime = dispatchTime;
 
-                    const execResult = this.executeTask.bind(this)(task);
+                    const execResult = this.executeTask.bind(this)(task, id, command.force);
 
                     execResults.push(execResult);
                 }
@@ -165,7 +176,7 @@ export class ServerManager {
                                 result.task.target,
                                 String(result.task.executeTime),
                                 String(result.task.dispatchTime),
-                                String(result.task.commandType === "readify" ? true : false)
+                                String(command.force ? true : false)
                             );
 
                             if (!killResult) {
@@ -191,32 +202,25 @@ export class ServerManager {
 
         return true;
     }
-    executeTask(task: Task): ExecuteTaskReturn {
+    executeTask(task: Task, id: string, force: boolean): ExecuteTaskReturn {
         try {
             //get ram status
-            const ramInfo = this.getAvailableRam();
+            const ramInfo = this.getRamInfos();
             const scriptSize = this.scriptSizes[task.op];
 
             const activeTask = task;
             const usedServers: UsedServer[] = [];
             let taskExecuted = false;
-
+            let remainingThreads = activeTask.threads;
             for (const server of ramInfo.servers) {
                 const serverAvailableRam = server.availableRam;
                 const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
+                if (remainingThreads < 1) break;
 
                 if (serverThreadCap < 1) {
-                    //we don't have enough ram for even 1 task in server, shouldn't happen
+                    //we don't have enough ram for even 1 task in server
 
-                    console.log("we don't have enough ram for even 1 task in server, this shouldn't happen");
                     continue;
-                }
-
-                if (serverThreadCap < activeTask.threads) {
-                    console.warn(
-                        "Server doesn't have enough ram to launch all threads! This shouldn't happen Server: " +
-                            server.hostname
-                    );
                 }
 
                 if (!this.ns.getServer(task.target)) {
@@ -224,8 +228,10 @@ export class ServerManager {
 
                     continue;
                 }
+                const threadsToLaunch = Math.min(serverThreadCap, remainingThreads);
+                remainingThreads -= threadsToLaunch;
 
-                const threadsToLaunch = activeTask.threads;
+                const forceCommand = force;
                 const execResult = this.ns.exec(
                     `/payloads/${activeTask.op}.js`,
                     server.hostname,
@@ -233,7 +239,8 @@ export class ServerManager {
                     activeTask.target,
                     String(activeTask.executeTime),
                     String(activeTask.dispatchTime),
-                    task.commandType === "readify" ? true : false
+                    forceCommand,
+                    id
                 );
 
                 if (execResult) {
@@ -243,7 +250,8 @@ export class ServerManager {
                         threadsLaunched: threadsToLaunch,
                     });
                     taskExecuted = true;
-                    break;
+                    if (remainingThreads <= 0) break;
+                    else continue;
                 } else {
                     console.warn("Payload failed to execute");
                     console.warn(
@@ -307,7 +315,21 @@ export class ServerManager {
         return totalRam;
     }
 
-    getAvailableRam(): RemotesWithRamInfo {
+    getRamInfos(): RemotesWithRamInfo {
+        if (homeServerActive(this.ns)) {
+            const home = this.ns.getServer("home");
+
+            return {
+                totalAvailableRam: home.maxRam - home.ramUsed,
+                servers: [
+                    {
+                        hostname: "home",
+                        availableRam: home.maxRam - home.ramUsed,
+                        totalRam: home.maxRam,
+                    },
+                ],
+            };
+        }
         const servers = this.refreshRemoteServers();
 
         const serversWithRamInfo: ServerRamInfo[] = [];
@@ -332,10 +354,11 @@ export class ServerManager {
                 totalRam: server.maxRam,
             });
         }
+        homeServerActive(this.ns);
 
         return {
             totalAvailableRam: totalAvailableRam,
-            servers: serversWithRamInfo.sort((a, b) => b.availableRam - a.availableRam),
+            servers: serversWithRamInfo.sort((a, b) => b.totalRam - a.totalRam),
         };
     }
 
@@ -343,17 +366,14 @@ export class ServerManager {
         this.remoteServers = getRemoteServers(this.ns);
 
         const homeServer = this.ns.getServer("home");
-        const homeServerRam = homeServer.maxRam;
-        const homeServerCpuCount = homeServer.cpuCores;
 
-        const remoteServerTotalRam = this.remoteServers.reduce((acc, cur) => acc + cur.maxRam, 0);
-
-        if (remoteServerTotalRam < homeServerRam * homeServerCpuCount) {
+        if (homeServerActive(this.ns)) {
             this.homeServer = true;
             this.homeServerCpu = this.ns.getServer("home").cpuCores;
 
             this.remoteServers = [homeServer];
         }
+
         return this.remoteServers;
     }
 
@@ -383,6 +403,19 @@ export class ServerManager {
             return false;
         }
 
+        //check for ram
+        const totalRam = this.getRamInfos().totalAvailableRam;
+        const commandRamRequirement = calculateCommandSize(this.ns, command);
+
+        if (totalRam < commandRamRequirement) {
+            console.log(
+                "Not enough RAM to execute command! Total RAM: " +
+                    totalRam +
+                    " Command RAM Requirement: " +
+                    commandRamRequirement
+            );
+            return false;
+        }
         this.addCommand(command);
 
         const processResult = this.processCommands();
@@ -393,11 +426,18 @@ export class ServerManager {
     async copyPayloads() {
         const PAYLOAD_NAMES = ["weaken.js", "grow.js", "hack.js"];
         const PAYLOAD_DIR = "/payloads";
+        const scpWait = 50;
 
+        this.refreshRemoteServers();
         for (const server of this.remoteServers) {
             await this.ns.scp("/utils/constants.js", server.hostname);
+            await sleep(scpWait);
+            await this.ns.scp("/utils/json.js", server.hostname);
+            await sleep(scpWait);
+
             for (const payloadName of PAYLOAD_NAMES) {
                 await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, server.hostname);
+                await sleep(scpWait);
             }
         }
     }
@@ -405,4 +445,11 @@ export class ServerManager {
         //this.ns.print("[ServerManager] " + message);
         console.log("[ServerManager] " + message);
     }
+}
+
+function generateId(length: number) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = length; i > 0; --i) result += chars[Math.floor(Math.random() * chars.length)];
+    return result;
 }

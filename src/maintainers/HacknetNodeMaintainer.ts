@@ -20,22 +20,67 @@ class HackNodeManager {
     }
 
     async hackNetLoop() {
+        const hacknet = this.ns.hacknet;
+
         const hacknetLogic = () => {
             const allNodes: NodeStats[] = [];
 
-            for (let i = 0; i < this.ns.hacknet.numNodes(); i++) {
-                allNodes.push(this.ns.hacknet.getNodeStats(i));
+            for (let i = 0; i < hacknet.numNodes(); i++) {
+                allNodes.push(hacknet.getNodeStats(i));
             }
-            const currentIncome = allNodes.reduce((acc, curr) => acc + curr.production, 0);
+            const hacknodeIncome = allNodes.reduce((acc, curr) => acc + curr.production, 0); //per second
 
-            const hackNodeBudget = currentIncome * 60 * 10; // 10 mins worth of income
+            const hackScriptIncome = this.ns.getScriptIncome()[0];
+
+            const hackNodeBudget = (hacknodeIncome + hackScriptIncome) * 60 * 10; // 10 mins worth of income
 
             //TODO get upgrades and decide which one to purchase
 
-            const getNodeUpgrades = (nodeId: number) => {
-                const coreUpgradeCost = this.ns.hacknet.getCoreUpgradeCost(nodeId, 1);
-                const ramUpgradeCost = this.ns.hacknet.getRamUpgradeCost(nodeId, 1);
-                const levelUpgradeCost = this.ns.hacknet.getLevelUpgradeCost(nodeId, 1);
+            const getNodeUpgrades = (
+                nodeId: number
+            ): {
+                id: number;
+                upgradeCosts: {
+                    level: number;
+                    ram: number;
+                    core: number;
+                };
+                ttp: {
+                    level: number;
+                    ram: number;
+                    core: number;
+                } | null;
+            } | null => {
+                const LEVEL_UPGRADE_MULT = 20;
+                const nodeInfo = hacknet.getNodeStats(nodeId);
+
+                const levelUpgradeCost = hacknet.getLevelUpgradeCost(nodeId, LEVEL_UPGRADE_MULT);
+                const ramUpgradeCost = hacknet.getRamUpgradeCost(nodeId, 1);
+                const coreUpgradeCost = hacknet.getCoreUpgradeCost(nodeId, 1);
+                const upgradeAvailable = [levelUpgradeCost, ramUpgradeCost, coreUpgradeCost].some(
+                    (cost) => cost !== Infinity
+                );
+
+                if (!upgradeAvailable) return null;
+                const nodeFormulas = this.ns.formulas.hacknetNodes;
+
+                let ttp;
+                if (nodeFormulas.constants()) {
+                    const moneyMult = this.ns.getPlayer().hacknet_node_money_mult;
+
+                    const [level, ram, cores] = [nodeInfo.level, nodeInfo.ram, nodeInfo.cores];
+                    const income = nodeFormulas.moneyGainRate(level, ram, cores, moneyMult);
+                    const coreUpgradeIncome = nodeFormulas.moneyGainRate(level, ram, cores + 1, moneyMult) - income;
+                    const ramUpgradeIncome = nodeFormulas.moneyGainRate(level, ram * 2, cores, moneyMult) - income;
+                    const levelUpgradeIncome =
+                        nodeFormulas.moneyGainRate(level + LEVEL_UPGRADE_MULT, ram, cores, moneyMult) - income;
+
+                    ttp = {
+                        level: calculateTTP(levelUpgradeCost, coreUpgradeIncome),
+                        ram: calculateTTP(ramUpgradeCost, ramUpgradeIncome),
+                        core: calculateTTP(coreUpgradeCost, levelUpgradeIncome),
+                    };
+                }
 
                 const result = {
                     id: nodeId,
@@ -44,6 +89,7 @@ class HackNodeManager {
                         ram: ramUpgradeCost,
                         level: levelUpgradeCost,
                     },
+                    ttp: ttp || null,
                 };
 
                 return result;
@@ -51,20 +97,36 @@ class HackNodeManager {
 
             for (let i = 0; i < allNodes.length; i++) {
                 const nodeUpgrades = getNodeUpgrades(i);
+                const twoHours = 60 * 60 * 2;
 
-                if (hackNodeBudget > nodeUpgrades.upgradeCosts.level) {
-                    this.ns.hacknet.upgradeLevel(i, 1);
+                if (!nodeUpgrades) continue;
+                if (!nodeUpgrades.ttp) {
+                    nodeUpgrades.ttp = {
+                        level: Infinity,
+                        ram: Infinity,
+                        core: Infinity,
+                    };
                 }
-                if (hackNodeBudget > nodeUpgrades.upgradeCosts.core) {
-                    this.ns.hacknet.upgradeCore(i, 1);
+
+                if (hackNodeBudget > nodeUpgrades.upgradeCosts.level || nodeUpgrades.ttp.level < twoHours) {
+                    hacknet.upgradeLevel(i, 20);
                 }
-                if (hackNodeBudget > nodeUpgrades.upgradeCosts.ram) {
-                    this.ns.hacknet.upgradeRam(i, 1);
+                if (hackNodeBudget > nodeUpgrades.upgradeCosts.core || nodeUpgrades.ttp.core < twoHours) {
+                    hacknet.upgradeCore(i, 1);
                 }
+                if (hackNodeBudget > nodeUpgrades.upgradeCosts.ram || nodeUpgrades.ttp.ram < twoHours) {
+                    hacknet.upgradeRam(i, 1);
+                }
+            }
+
+            const newNodeCost = hacknet.getPurchaseNodeCost();
+
+            if (newNodeCost < hackNodeBudget) {
+                hacknet.purchaseNode();
             }
         };
 
-        while (this.ns.scriptRunning("/modules/HacknetNodeManager/HacknetNodeManager.js", "home")) {
+        while (this.ns.scriptRunning("/maintainers/HacknetNodeMaintainer.js", "home")) {
             await hacknetLogic();
             await sleep(HACKNET_NODE_MANAGER_INTERVAL);
         }
@@ -73,4 +135,15 @@ class HackNodeManager {
     log(data) {
         console.log("[HacknetNodeMaintainer] " + data);
     }
+}
+
+/**
+ * Calculates TTP (Time to profit) which is the time it takes upgrade to cover it self.
+ * @param cost cost of upgrade
+ * @param income increase in income per sec
+ * @returns time in seconds
+ */
+function calculateTTP(cost: number, income: number) {
+    if (income === 0) return Infinity;
+    return Math.round(cost / income);
 }

@@ -1,12 +1,16 @@
+import { OddizToolkit } from "types";
 import { NS } from "typings/Bitburner";
+import { SCRIPT_SEC_CHECK_INTERVAL } from "/utils/constants";
+import { parse, Stringified, stringify } from "/utils/json";
 const MAX_WEAKEN_WAIT_TIME = 1000;
 export async function main(ns: NS) {
     const target = ns.args[0] as string;
-    const plannedExecuteTime = (ns.args[1] as number) || 0;
-    const force = (ns.args[3] as boolean) || false;
+    const plannedExecuteTime = parseInt(ns.args[1] as string) || 0;
+    const force = ns.args[3] === undefined ? true : (ns.args[3] as boolean) || false;
+
+    const id = ns.args[4] as string;
 
     const startTime = Date.now();
-
     const dispatchTime = (ns.args[2] as number) || Date.now();
 
     ns.print("Script run time: " + ` [${new Date(startTime).toLocaleTimeString()}]`);
@@ -16,23 +20,30 @@ export async function main(ns: NS) {
         await sleep(plannedExecuteTime - dispatchTime);
     }
     let counter = 0;
-    const waitInMs = 20;
+    const waitInMs = SCRIPT_SEC_CHECK_INTERVAL;
     if (!force) {
-        while (getSecurityLevel(ns, target) > 0 && counter < MAX_WEAKEN_WAIT_TIME / 20) {
+        while (getSecurityLevel(ns, target) > 0 && counter < MAX_WEAKEN_WAIT_TIME / SCRIPT_SEC_CHECK_INTERVAL) {
             await sleep(waitInMs);
             counter++;
         }
     }
 
-    if (counter > 0) {
-        console.log(`Weaken waited ${counter * waitInMs} ms for server to be ready`);
-    }
-
     const now = Date.now();
     const nowDate = new Date(now);
 
+    const executeLag = now - plannedExecuteTime;
+
     ns.print("Executed at: " + ` [${nowDate.toLocaleTimeString()}]`);
-    ns.print("Execute lag: " + (now - plannedExecuteTime) + "ms");
+    ns.print("Execute lag: " + executeLag + "ms");
+
+    const myWindow = eval("window") as Window;
+    const localStorage = myWindow.localStorage as Storage;
+    const oddizToolkitLocalStorage = parse(localStorage.getItem("oddizToolkit") as Stringified<OddizToolkit>);
+    oddizToolkitLocalStorage.trioLagInfo[id] = {
+        weaken: executeLag,
+    };
+    localStorage.setItem("oddizToolkit", stringify(oddizToolkitLocalStorage));
+
     await ns.weaken(target);
 }
 

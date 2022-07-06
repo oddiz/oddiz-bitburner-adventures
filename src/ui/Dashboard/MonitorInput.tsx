@@ -1,7 +1,9 @@
 import { NS } from "/typings/Bitburner";
-import { getAllServers } from "/utils/getAllServers";
+import { getAllServers } from "/utils/getters";
+import { sleep } from "/utils/sleep";
 
-const React = window.React;
+const cheatyWindow = eval("window") as Window & typeof globalThis;
+const React = cheatyWindow.React;
 const { useState, useMemo } = React;
 
 const queryInString = (query: string, string: string) => {
@@ -12,7 +14,7 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
     const allServers = useMemo(() => getAllServers(ns), []);
     const [suggestions, setSuggestions] = useState<string[]>([]);
 
-    const onChangeHandler = (e) => {
+    const onChangeHandler: React.ChangeEventHandler<HTMLInputElement> = (e) => {
         const query = e.target.value;
         const matchedServers: string[] = [];
         for (const server of allServers) {
@@ -24,7 +26,7 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
         setSuggestions(e.target.value === "" ? [] : matchedServers);
     };
 
-    const onKeyDownHandler = (e) => {
+    const onKeyDownHandler = async (e) => {
         if (e.key === "Enter") {
             if (suggestions.length === 1) {
                 ns.run("/utils/monitor.js", 1, suggestions[0]);
@@ -33,7 +35,15 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
             }
         }
     };
+    const onFocusHandler = () => {
+        const terminalInput = cheatyWindow.document.getElementById("terminal-input") as HTMLInputElement;
+        terminalInput.disabled = true;
+    };
 
+    const onFocusOut = () => {
+        const terminalInput = cheatyWindow.document.getElementById("terminal-input") as HTMLInputElement;
+        terminalInput.disabled = false;
+    };
     const suggestionsSection = suggestions.map((server) => {
         return <div key={server}>{server}</div>;
     });
@@ -52,11 +62,13 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
                     padding: "2px",
                     backgroundColor: "black",
                     color: "yellow",
-                    margin:"2px"
+                    margin: "2px",
                 }}
                 placeholder="Monitor"
                 onChange={onChangeHandler}
                 onKeyDown={onKeyDownHandler}
+                onFocusCapture={onFocusHandler}
+                onBlur={onFocusOut}
             />
             <div
                 style={{

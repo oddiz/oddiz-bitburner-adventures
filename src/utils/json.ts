@@ -3,10 +3,10 @@ export type Stringified<T> = string & {
     [P in keyof T]: { "_ value": T[P] };
 };
 
-export function portParse<T>(text: Stringified<T>): T {
+export function parse<T>(text: Stringified<T>): T {
     return JSON.parse(text);
 }
 
-export function portStringify<T>(value: T): Stringified<T> {
+export function stringify<T>(value: T): Stringified<T> {
     return JSON.stringify(value) as unknown as Stringified<T>;
 }
