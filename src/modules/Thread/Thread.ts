@@ -16,6 +16,7 @@ import {
 } from "/utils/constants";
 import { calculateHackLoop } from "/utils/calculateHackLoop";
 import { moneyWithinHackRange } from "/modules/Thread/ThreadHelpers";
+import { homeServerActive } from "/utils/homeServerActive";
 
 /**
  * Runs for every server that we want to hack.
@@ -56,9 +57,9 @@ export class Thread extends EventEmitter {
             .then((serverReady) => {
                 if (!serverReady) {
                     console.warn(`Thread for [${this.targetHostname}] is not ready after waiting for it to be ready!`);
-                } else {
-                    this.emit("ready");
+
                 }
+                this.emit("ready");
             })
             .catch(() => {
                 //console.log("Error in Thread.run() :" + JSON.stringify(err));
@@ -96,7 +97,7 @@ export class Thread extends EventEmitter {
                         this.ns,
                         this.targetHostname,
                         percentage,
-                        this.serverManager.homeServerCpu || 1
+                        homeServerActive(this.ns) ? this.ns.getServer("home").cpuCores : 1
                     );
                 }
 

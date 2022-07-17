@@ -49,6 +49,7 @@ export function getAllServers(ns: NS) {
 export function getRemoteServers(ns: NS): Server[] {
     const remoteServers = getAllServers(ns);
     const detailedRemoteServers: Server[] = [];
+
     for (const server of remoteServers) {
         const serverInfo = ns.getServer(server);
 

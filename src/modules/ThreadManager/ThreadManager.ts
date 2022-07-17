@@ -22,13 +22,15 @@ export class ThreadManager extends EventEmitter {
     availableServers: Server[];
     serverManager: ServerManager;
     runningThreads: Map<string, RunningThread>;
+    private forcedTarget: string | undefined;
     ns: NS;
-    constructor(ns: NS, ServerManager: ServerManager) {
+    constructor(ns: NS, ServerManager: ServerManager, forcedTarget?: string) {
         super();
         this.ns = ns;
         this.availableServers = [];
         this.serverManager = ServerManager;
         this.runningThreads = new Map();
+        this.forcedTarget = forcedTarget;
     }
 
     //TODO: ability to spawn multiple trio loops for different servers at the same time
@@ -99,7 +101,9 @@ export class ThreadManager extends EventEmitter {
         }
     }
     async deployThreads() {
-        const targets: string[] = getRootedServers(this.ns).map((server) => server.hostname);
+        const targets: string[] = this.forcedTarget
+            ? [this.forcedTarget]
+            : getRootedServers(this.ns).map((server) => server.hostname);
         //const targets = ["iron-gym", "foodnstuff"];
 
         for (const target of targets) {

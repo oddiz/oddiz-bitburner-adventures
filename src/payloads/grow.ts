@@ -38,10 +38,6 @@ export async function main(ns: NS) {
         }
     }
 
-    if (counter > 0) {
-        console.log(`Grow waited ${counter * waitInMs} ms for server to be ready`);
-    }
-
     const now = Date.now();
     const nowDate = new Date(now);
 

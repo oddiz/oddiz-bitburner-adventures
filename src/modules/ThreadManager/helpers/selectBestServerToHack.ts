@@ -31,9 +31,6 @@ export function selectBestServerToHack(
             throw "Not every server has moneyPerThread and moneyPerMs";
         }
 
-        //find for default interval
-        console.log("Couldn't find suitable target with given filters. Going for default interval.");
-
         const sortedForDefaultInterval = [...serverHackLoopInfos]
             .sort((a, b) => b.moneyPerMs - a.moneyPerMs)
             .filter((info) => info.requiredRam < totalAvailableRam * RAM_ALLOCATION_RATIO);

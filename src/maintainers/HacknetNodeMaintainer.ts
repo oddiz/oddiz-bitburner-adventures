@@ -3,7 +3,6 @@ import { HACKNET_NODE_MANAGER_INTERVAL } from "/utils/constants";
 import { sleep } from "/utils/sleep";
 
 export async function main(ns: NS) {
-    ns.tail();
     const HNManager = new HackNodeManager(ns);
 
     await HNManager.run();
@@ -34,11 +33,7 @@ class HackNodeManager {
 
             const hackNodeBudget = (hacknodeIncome + hackScriptIncome) * 60 * 10; // 10 mins worth of income
 
-            //TODO get upgrades and decide which one to purchase
-
-            const getNodeUpgrades = (
-                nodeId: number
-            ): {
+            type NodeUpgrades = {
                 id: number;
                 upgradeCosts: {
                     level: number;
@@ -50,7 +45,8 @@ class HackNodeManager {
                     ram: number;
                     core: number;
                 } | null;
-            } | null => {
+            } | null;
+            const getNodeUpgrades = (nodeId: number): NodeUpgrades => {
                 const LEVEL_UPGRADE_MULT = 20;
                 const nodeInfo = hacknet.getNodeStats(nodeId);
 

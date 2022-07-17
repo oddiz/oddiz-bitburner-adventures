@@ -79,7 +79,10 @@ export function calculateHackLoop(ns: NS, hostname: string, percentage: number, 
             moneyPerMs: moneyPerMs,
             moneyPerThreadFormatted: ns.nFormat(Math.floor(income / totalThreads), "0,0"),
             moneyPerCpuSecFormatted: ns.nFormat(Math.floor(income / (loopTime / 1000)), "0,0"),
-            repeatInterval: Math.round(loopTime / realRepeatCapacity),
+            repeatInterval:
+                realRepeatCapacity === 1
+                    ? Math.round(loopTime / realRepeatCapacity) + 1000
+                    : Math.round(loopTime / realRepeatCapacity),
             opThreads: {
                 hack: reqHackThreads,
                 grow: reqGrowThreads,

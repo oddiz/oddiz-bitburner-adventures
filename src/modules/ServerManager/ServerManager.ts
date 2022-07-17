@@ -440,6 +440,8 @@ export class ServerManager {
                 await sleep(scpWait);
             }
         }
+
+        return;
     }
     log(message: string) {
         //this.ns.print("[ServerManager] " + message);

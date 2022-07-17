@@ -1,5 +1,6 @@
 import { Switch } from "/ui/Dashboard/Switch";
 import { NS } from "/typings/Bitburner";
+import { sleep } from "/utils/sleep";
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const React = cheatyWindow.React;
 const { useState } = React;
@@ -24,17 +25,18 @@ export const ToggleSection = ({ ns }: { ns: NS }) => {
                 textAlign: "center",
             }}
         >
-            <h4>Switches</h4>
+            <h4 style={{ marginBottom: "5px" }}>Switches</h4>
             <Switch
                 title="Node Maint."
-                onClickHandler={() => {
+                onClickHandler={async () => {
                     if (ns.scriptRunning(NODE_MAINTAINER_PATH, "home")) {
                         ns.scriptKill(NODE_MAINTAINER_PATH, "home");
                         setNodeMaintActive(false);
                     } else {
                         const pid = ns.exec(NODE_MAINTAINER_PATH, "home");
                         if (pid) {
-                            setNodeMaintActive(true);
+                            await sleep(200);
+                            if (ns.scriptRunning(NODE_MAINTAINER_PATH, "home")) setNodeMaintActive(true);
                         }
                     }
                 }}

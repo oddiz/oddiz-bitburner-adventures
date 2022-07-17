@@ -6,14 +6,19 @@ import { sleep } from "/utils/sleep";
 
 const loggingEnabled = false;
 
+export async function main(ns: NS) {
+    ns.tail();
+
+    new ServerMaintainer(ns).init();
+}
 export class ServerMaintainer {
     private ns: NS;
-    serverManager: ServerManager;
-    serversMarkedForDelete: Set<string>;
+    private serverManager: ServerManager | null;
+    private serversMarkedForDelete: Set<string>;
 
-    constructor(ns: NS, ServerManager: ServerManager) {
+    constructor(ns: NS, ServerManager?: ServerManager) {
         this.ns = ns;
-        this.serverManager = ServerManager;
+        this.serverManager = ServerManager || null;
         this.serversMarkedForDelete = new Set();
     }
 
@@ -60,7 +65,7 @@ export class ServerMaintainer {
 
                         if (serverInfo.ramUsed === 0) {
                             const isSuccessful = this.ns.deleteServer(hostname);
-                            if (isSuccessful) {
+                            if (isSuccessful && this.serverManager) {
                                 this.serversMarkedForDelete.delete(hostname);
                                 this.serverManager.refreshRemoteServers();
                             }
@@ -77,29 +82,29 @@ export class ServerMaintainer {
 
                 //check we reached remote limit
                 const maxRemoteRamAllowed = this.ns.getPurchasedServerMaxRam();
-                const maxRemoteNumAllowed = this.ns.getPurchasedServerLimit();
-
                 if (
-                    allRemoteServers.length === maxRemoteNumAllowed &&
+                    this.isAtRemoteCapacity() &&
                     allRemoteServers.every((server) => server.maxRam === maxRemoteRamAllowed)
                 ) {
-                    //we reached max remote servers
                     console.log("Maximum remote servers with maximum RAM reached");
                     break;
                 }
 
                 const lowestRam = weakestServer?.maxRam || 2;
-                const targetRamMultiplier = Math.max(Math.log2(lowestRam) + 1, Math.log2(homeServer.maxRam));
-                //if we are at server capacity
+                const minimumRamMultiplier = Math.max(
+                    this.isAtRemoteCapacity() ? Math.log2(lowestRam) + 1 : Math.log2(lowestRam),
+                    Math.log2(homeServer.maxRam)
+                );
 
-                const ramSize = mostRamSizeForMoney(this.ns, playerMoney);
+                const purchasableRamSize = mostRamSizeForMoney(this.ns, playerMoney);
 
-                if (ramSize >= (2 ** targetRamMultiplier || maxRemoteRamAllowed)) {
-                    const serverName = `${Math.floor(Math.random() * 100)}-${ramSize}GB`;
+                // check if we should purchase a server
+                if (purchasableRamSize >= (2 ** minimumRamMultiplier || maxRemoteRamAllowed)) {
+                    const serverName = `${Math.floor(Math.random() * 100)}-${purchasableRamSize}GB`;
 
-                    if (allRemoteServers.length === maxPurchasedServers) {
+                    if (this.isAtRemoteCapacity()) {
                         //cleanup mode
-                        if (mostRamSizeForMoney(this.ns, playerMoney, 1) >= 2 ** targetRamMultiplier) {
+                        if (mostRamSizeForMoney(this.ns, playerMoney, 1) >= 2 ** minimumRamMultiplier) {
                             logger.updateMessage(
                                 `Deleting server ${weakestServer.hostname} to make room for better one`
                             );
@@ -107,11 +112,12 @@ export class ServerMaintainer {
                         }
                     }
 
-                    const hostname = this.ns.purchaseServer(serverName, ramSize);
+                    const hostname = this.ns.purchaseServer(serverName, purchasableRamSize);
                     if (hostname !== "") {
                         console.log("Purchased new server: " + hostname);
-                        this.serverManager.refreshRemoteServers();
-                        await this.serverManager.copyPayloads();
+                        if (this.serverManager) {
+                            await this.serverManager.copyPayloads();
+                        }
                     }
                 }
 
@@ -133,6 +139,11 @@ export class ServerMaintainer {
 
     serverIsMarkedForDelete(hostname: string) {
         return this.serversMarkedForDelete.has(hostname);
+    }
+    isAtRemoteCapacity() {
+        const allRemotes = getRemoteServers(this.ns);
+
+        return allRemotes.length === this.ns.getPurchasedServerLimit();
     }
 }
 

@@ -2,10 +2,8 @@
 import { findRouteTo } from "/utils/findRouteTo";
 import { sleep } from "/utils/sleep";
 import { NS, Server } from "/typings/Bitburner";
-import { KeyboardEvent } from "react";
-import { notStrictEqual } from "assert";
 
-const factionServers = ["CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z"];
+const factionServers = ["CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z", "The-Cave", "w0r1d_d43m0n"];
 
 export async function main(ns: NS) {
     ns.disableLog("ALL");
@@ -31,7 +29,7 @@ export async function backdoorFactionServers(ns: NS) {
         if (!routeToServer) console.warn("Couldn't find route to server");
 
         for (const server of routeToServer) {
-            await sendTerminalCommand(ns, `connect ${server}`);
+            await sendTerminalCommand(ns, server === "home" ? "home" : `connect ${server}`);
         }
 
         const backdoorTime = getBackdoorTime(ns, target);
