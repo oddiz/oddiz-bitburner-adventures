@@ -6,12 +6,15 @@ const React = cheatyWindow.React;
 const { useState } = React;
 
 const NODE_MAINTAINER_PATH = "/maintainers/HacknetNodeMaintainer.js";
+const GANG_PATH = "gang.js";
 
 export const ToggleSection = ({ ns }: { ns: NS }) => {
     const [nodeMaintActive, setNodeMaintActive] = useState(ns.scriptRunning(NODE_MAINTAINER_PATH, "home"));
     const [remoteMaintActive, setRemoteMaintActive] = useState(
         cheatyWindow.localStorage.getItem("remoteMaintenanceActive") === "true"
     );
+
+    const [gangActive, setGangActive] = useState(ns.scriptRunning(GANG_PATH, "home"));
 
     return (
         <div
@@ -54,6 +57,19 @@ export const ToggleSection = ({ ns }: { ns: NS }) => {
                     }
                 }}
                 active={remoteMaintActive}
+            />
+            <Switch
+                title="Gang"
+                onClickHandler={() => {
+                    if (ns.scriptRunning(GANG_PATH, "home")) {
+                        ns.scriptKill(GANG_PATH, "home");
+                        setGangActive(false);
+                    } else {
+                        ns.exec(GANG_PATH, "home");
+                        setGangActive(true);
+                    }
+                }}
+                active={gangActive}
             />
         </div>
     );

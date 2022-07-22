@@ -60,6 +60,10 @@ export class ThreadManager extends EventEmitter {
 
                 console.log("Selected Target: " + JSON.stringify(selectedTargetLoopInfo, null, 2));
 
+                const cheatyWindow = eval("window") as Window;
+                const localStorage = cheatyWindow.localStorage;
+                localStorage.setItem("activeHackLoop", JSON.stringify(selectedTargetLoopInfo));
+
                 this.signalThreadToLoop(selectedTargetLoopInfo);
             } catch (error) {
                 console.log("Error after all threads are ready: " + error);
@@ -101,6 +105,7 @@ export class ThreadManager extends EventEmitter {
         }
     }
     async deployThreads() {
+        //TODO debug mode only deploys 1 thread
         const targets: string[] = this.forcedTarget
             ? [this.forcedTarget]
             : getRootedServers(this.ns).map((server) => server.hostname);
@@ -178,6 +183,7 @@ interface Ops<E> {
 }
 export interface HackLoopInfo {
     cores: number;
+    server: Server;
     hostname: string;
     hackPercentage: number;
     totalThreads: number;

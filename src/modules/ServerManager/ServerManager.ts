@@ -1,13 +1,12 @@
 import { NS, Server } from "typings/Bitburner";
 import { commandCanRun } from "/modules/ServerManager/commandCanRun";
 import { ServerMaintainer } from "/maintainers/RemoteServerMaintainer";
-import { getPayloadSizes, getRemoteServers } from "/utils/getters";
+import { getPayloadSizes, getRemoteServers, getRootedServers } from "/utils/getters";
 
 import { killAll } from "/utils/killAll";
-import { COMMAND_EXEC_MIN_INTERVAL, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";
+import { COMMAND_EXEC_MIN_INTERVAL, ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, RAM_ALLOCATION_RATIO } from "/utils/constants";
 import { calculateCommandSize } from "/utils/calculateCommandSize";
 import { homeServerActive } from "/utils/homeServerActive";
-import { sleep } from "/utils/sleep";
 
 export interface RemotesWithRamInfo {
     servers: ServerRamInfo[];
@@ -111,7 +110,6 @@ export class ServerManager {
         this.log("Starting server maintainer...");
         this.serverMaintainer.init();
 
-        this.totalRam = this.getTotalRam();
         //this.log(`Total RAM: ${this.totalRam}GB`);
 
         this.interval = setInterval(this.processCommands.bind(this), COMMAND_EXEC_MIN_INTERVAL / 2);
@@ -213,7 +211,7 @@ export class ServerManager {
             let taskExecuted = false;
             let remainingThreads = activeTask.threads;
             for (const server of ramInfo.servers) {
-                const serverAvailableRam = server.availableRam;
+                const serverAvailableRam = server.availableRam * RAM_ALLOCATION_RATIO;
                 const serverThreadCap = Math.floor(serverAvailableRam / scriptSize);
                 if (remainingThreads < 1) break;
 
@@ -306,36 +304,29 @@ export class ServerManager {
         }
     }
 
-    getTotalRam() {
-        const servers = this.refreshRemoteServers();
-        let totalRam = 0;
-        for (const server of servers) {
-            totalRam += server.maxRam;
-        }
-        return totalRam;
-    }
-
     getRamInfos(): RemotesWithRamInfo {
         if (homeServerActive(this.ns)) {
             const home = this.ns.getServer("home");
+            const availableRam = home.maxRam * RAM_ALLOCATION_RATIO - home.ramUsed;
 
             return {
-                totalAvailableRam: home.maxRam - home.ramUsed,
+                totalAvailableRam: availableRam,
                 servers: [
                     {
                         hostname: "home",
-                        availableRam: home.maxRam - home.ramUsed,
+                        availableRam: availableRam,
                         totalRam: home.maxRam,
                     },
                 ],
             };
         }
         const servers = this.refreshRemoteServers();
-
+        const rootedServers = getRootedServers(this.ns);
         const serversWithRamInfo: ServerRamInfo[] = [];
         let totalAvailableRam = 0;
-        for (const server of servers) {
-            const availableRam = server.maxRam - server.ramUsed;
+        for (const server of [...servers, ...rootedServers]) {
+            const serverMaxRam = server.maxRam * RAM_ALLOCATION_RATIO;
+            const availableRam = serverMaxRam - server.ramUsed;
 
             if (availableRam < 2) {
                 //ignore the server
@@ -351,10 +342,9 @@ export class ServerManager {
             serversWithRamInfo.push({
                 hostname: server.hostname,
                 availableRam: availableRam,
-                totalRam: server.maxRam,
+                totalRam: serverMaxRam,
             });
         }
-        homeServerActive(this.ns);
 
         return {
             totalAvailableRam: totalAvailableRam,
@@ -423,21 +413,26 @@ export class ServerManager {
         return processResult;
     }
 
-    async copyPayloads() {
-        const PAYLOAD_NAMES = ["weaken.js", "grow.js", "hack.js"];
+    async copyPayloads(target?: string) {
+        const PAYLOAD_NAMES = ["weaken.js", "grow.js", "hack.js", "hackChecker.js"];
         const PAYLOAD_DIR = "/payloads";
-        const scpWait = 50;
 
-        this.refreshRemoteServers();
-        for (const server of this.remoteServers) {
-            await this.ns.scp("/utils/constants.js", server.hostname);
-            await sleep(scpWait);
-            await this.ns.scp("/utils/json.js", server.hostname);
-            await sleep(scpWait);
-
+        if (target) {
+            await this.ns.scp("/utils/constants.js", target);
+            await this.ns.scp("/utils/json.js", target);
             for (const payloadName of PAYLOAD_NAMES) {
-                await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, server.hostname);
-                await sleep(scpWait);
+                await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, target);
+            }
+        } else {
+            this.refreshRemoteServers();
+            const rootedServers = getRootedServers(this.ns);
+            for (const server of [...this.remoteServers, ...rootedServers]) {
+                await this.ns.scp("/utils/constants.js", server.hostname);
+                await this.ns.scp("/utils/json.js", server.hostname);
+
+                for (const payloadName of PAYLOAD_NAMES) {
+                    await this.ns.scp(`${PAYLOAD_DIR}/${payloadName}`, server.hostname);
+                }
             }
         }
 

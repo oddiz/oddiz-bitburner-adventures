@@ -9,7 +9,10 @@ const loggingEnabled = false;
 export async function main(ns: NS) {
     ns.tail();
 
-    new ServerMaintainer(ns).init();
+    await new ServerMaintainer(ns).init();
+    while (this.ns.scriptRunning("/maintainers/RemoteServerMaintainer.js", "home")) {
+        await ns.sleep(1000);
+    }
 }
 export class ServerMaintainer {
     private ns: NS;
@@ -42,7 +45,6 @@ export class ServerMaintainer {
     }
 
     async startLoop() {
-        const maxPurchasedServers = this.ns.getPurchasedServerLimit();
         const logger = new SMLogger(this.ns);
 
         const homeServer = this.ns.getServer("home");
@@ -50,7 +52,10 @@ export class ServerMaintainer {
         const cheatyWindow = eval("window") as Window;
 
         let weakestServer: Server;
-        while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
+        while (
+            this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home") ||
+            this.ns.scriptRunning("/maintainers/RemoteServerMaintainer.js", "home")
+        ) {
             const maintenanceActive = cheatyWindow.localStorage.getItem("remoteMaintenanceActive") === "true";
 
             if (!maintenanceActive) {
@@ -116,7 +121,7 @@ export class ServerMaintainer {
                     if (hostname !== "") {
                         console.log("Purchased new server: " + hostname);
                         if (this.serverManager) {
-                            await this.serverManager.copyPayloads();
+                            await this.serverManager.copyPayloads(hostname);
                         }
                     }
                 }

@@ -57,7 +57,6 @@ export class Thread extends EventEmitter {
             .then((serverReady) => {
                 if (!serverReady) {
                     console.warn(`Thread for [${this.targetHostname}] is not ready after waiting for it to be ready!`);
-
                 }
                 this.emit("ready");
             })
@@ -185,13 +184,16 @@ export class Thread extends EventEmitter {
             while (this.ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
                 const server = this.ns.getServer(this.targetHostname);
 
-                if (notInRangeCounter > 5) {
-                    await this.readyTargetForLoop();
+                if (notInRangeCounter > 10) {
+                    while (!this.isReadyForLoop()) {
+                        this.readyTargetForLoop();
+                    }
+
                     notInRangeCounter = 0;
                 }
 
                 if (
-                    moneyWithinHackRange(server.moneyMax, server.moneyAvailable, percentage, 2) ||
+                    moneyWithinHackRange(server.moneyMax, server.moneyAvailable, percentage, 3) ||
                     this.unoptimalHackLoop
                 ) {
                     spawnHackTrio();

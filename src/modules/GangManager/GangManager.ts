@@ -63,8 +63,6 @@ export class GangManager {
     buyEquipment(type: string) {
         const gang = this.ns.gang;
 
-        console.log(gang.getMemberInformation("bob"));
-
         if (type === "hacking") {
             // noop
         }

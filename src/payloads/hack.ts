@@ -79,16 +79,11 @@ export async function main(ns: NS) {
         }
     }
 
+    ns.run("/payloads/hackChecker.js", 1, ...ns.args);
+
     await ns.hack(target);
     //if (moneyInExpectedRanges()) await ns.hack(target);
     //else console.warn("hack.js couldn't execute because money was not in expected ranges");
-
-    function moneyInExpectedRanges() {
-        const money = ns.getServerMoneyAvailable(target);
-        const maxMoney = ns.getServerMaxMoney(target);
-
-        return money === maxMoney;
-    }
 }
 
 function sleep(ms: number) {
@@ -100,10 +95,4 @@ function getSecurityLevel(ns: NS, target: string) {
     const curSec = ns.getServerSecurityLevel(target);
 
     return curSec - minSec;
-}
-
-function isWithinHackRange(maxMoney, money, hackPercentage, leeway = 2) {
-    const currentMoneyPercentage = (money / maxMoney) * 100;
-
-    return hackPercentage - leeway <= currentMoneyPercentage && currentMoneyPercentage <= hackPercentage + leeway;
 }

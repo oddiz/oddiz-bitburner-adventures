@@ -3,7 +3,7 @@ import { NS } from "/typings/Bitburner";
 export async function main(ns: NS) {
     try {
         const target = ns.args[0] as string;
-        const hackAmount = (ns.args[1] as number) || 1;
+        const hackAmount = (ns.args[1] as number) || 3;
 
         ns.tail();
         if (!target) {

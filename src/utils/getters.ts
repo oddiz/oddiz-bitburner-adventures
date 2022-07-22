@@ -238,7 +238,8 @@ export function getServerDataToMax(ns: NS, server: string, cores = 1): ServerHac
 export function getTotalAvailableRam(ns: NS) {
     if (homeServerActive(ns)) return ns.getServer("home").maxRam - ns.getServer("home").ramUsed;
     const allRemotes = getRemoteServers(ns);
-    const totalAvailableRam = allRemotes.reduce((acc, cur) => acc + cur.maxRam - cur.ramUsed, 0);
+    const allRooted = getRootedServers(ns);
+    const totalAvailableRam = [...allRemotes, ...allRooted].reduce((acc, cur) => acc + cur.maxRam - cur.ramUsed, 0);
 
     return totalAvailableRam;
 }

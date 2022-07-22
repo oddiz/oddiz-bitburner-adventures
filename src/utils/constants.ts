@@ -10,12 +10,12 @@ export const ODDIZ_HACK_TOOLKIT_SCRIPT_NAME = "main.js";
 
 export const ODDIZ_UI_ENCHANCEMENTS_PATH = "/ui/ui.js";
 
-export const RAM_ALLOCATION_RATIO = 0.95; // ratio of what percentage of available RAM to use for hacking loop
+export const RAM_ALLOCATION_RATIO = 0.9; // ratio of what percentage of available RAM to use for hacking loop
 
 export const MONITORJS_REFRESH_INTERVAL = 1000 / 25; // how often to refresh the monitor
 
 export const DEBUG_MODE = false; // if true, will select fastest server to hack
-export const DEBUG_MIN_LOOPTIME = 30 * 1000; // server with loop time higer than this will be selected in debug mode
+export const DEBUG_MIN_LOOPTIME = 20 * 1000; // server with loop time higer than this will be selected in debug mode
 
 export const SERVER_MAINTAINER_TICK_INTERVAL = 5000; // how often to check for server maintainance
 

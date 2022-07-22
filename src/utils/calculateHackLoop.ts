@@ -69,6 +69,7 @@ export function calculateHackLoop(ns: NS, hostname: string, percentage: number, 
         const moneyPerMs = moneyPerLoop / loopTime;
         return {
             cores: cores,
+            server: server,
             hostname: server.hostname,
             hackPercentage: safePercentage,
             totalThreads: totalThreads,
