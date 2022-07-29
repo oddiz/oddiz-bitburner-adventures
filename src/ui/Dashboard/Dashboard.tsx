@@ -13,17 +13,16 @@ export interface IDashboardProps {
 }
 export const Dashboard = ({ ns }: IDashboardProps) => {
     const killAllClicked = async () => {
-        killAll(ns).catch((err) => console.warn("Error trying to kill all with button:", err));
+        await killAll(ns).catch((err) => console.warn("Error trying to kill all with button:", err));
         ns.scriptKill(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home");
     };
 
     const runClicked = async () => {
         if (ns.scriptRunning(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home")) {
             ns.scriptKill(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, "home");
-
-            await ns.asleep(100);
+        } else {
+            ns.run(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME);
         }
-        ns.run(ODDIZ_HACK_TOOLKIT_SCRIPT_NAME);
     };
     return (
         <div

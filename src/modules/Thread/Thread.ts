@@ -185,24 +185,20 @@ export class Thread extends EventEmitter {
                 const server = this.ns.getServer(this.targetHostname);
 
                 if (notInRangeCounter > 10) {
-                    while (!this.isReadyForLoop()) {
-                        this.readyTargetForLoop();
-                    }
-
+                    notInRangeCounter = 0;
+                    this.readyTargetForLoop();
+                } else {
+                    spawnHackTrio();
                     notInRangeCounter = 0;
                 }
 
                 if (
-                    moneyWithinHackRange(server.moneyMax, server.moneyAvailable, percentage, 3) ||
+                    !moneyWithinHackRange(server.moneyMax, server.moneyAvailable, percentage, 3) ||
                     this.unoptimalHackLoop
                 ) {
-                    spawnHackTrio();
-                    notInRangeCounter = 0;
-                } else {
-                    console.warn("Didn't spawn hack trio because money is not within range");
                     notInRangeCounter++;
                 }
-                await sleep(repeatInt * 1.0 + Math.floor(Math.random() * 50));
+                await sleep(repeatInt * 1.0);
             }
             console.log("Script is not running anymore. Terminating thread...");
 
@@ -285,13 +281,13 @@ export class Thread extends EventEmitter {
         const newTargetHackData = getServerDataToMax(
             this.ns,
             this.targetHostname,
-            this.serverManager.homeServerCpu || 1
+            homeServerActive(this.ns) ? this.ns.getServer("home").cpuCores : 1
         );
         this.targetServerHackData = newTargetHackData;
         return newTargetHackData;
     }
     isReadyForLoop(): boolean {
-        if (this.unoptimalHackLoop) true;
+        if (this.unoptimalHackLoop) return true;
         const hackData = this.getHackData();
         if (!hackData) return false;
         return hackData.growthThreadsToMax === 0 && hackData.weakenThreadsToMin === 0;

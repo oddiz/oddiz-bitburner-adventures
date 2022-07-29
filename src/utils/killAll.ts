@@ -16,7 +16,7 @@ export async function killAll(ns: NS) {
     }
 
     //for home server
-    const payloadNames = ["grow.js", "hack.js", "weaken.js"];
+    const payloadNames = ["grow.js", "hack.js", "weaken.js", "hackChecker.js"];
     const payloadDir = "/payloads/";
     for (const payloadName of payloadNames) {
         ns.scriptKill(payloadDir + payloadName, "home");

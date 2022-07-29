@@ -2,41 +2,46 @@ import { NS } from "./typings/Bitburner";
 import { sleep } from "/utils/sleep";
 import { getRemoteServers, getRootedServers } from "/utils/getters";
 
-const GROW_DIR = "/payloads/lw_grow.js";
-const WEAKEN_DIR = "/payloads/lw_weaken.js";
-const HACK_DIR = "/payloads/lw_hack.js";
+const LW_GROW_DIR = "/payloads/lw_grow.js";
+const LW_WEAKEN_DIR = "/payloads/lw_weaken.js";
+const LW_HACK_DIR = "/payloads/lw_hack.js";
 const GETTERS_DIR = "/utils/getters.js";
+
 export async function main(ns: NS) {
     ns.tail();
     ns.disableLog("ALL");
 
     const target = ns.args[0] as string;
 
-    // hacking loop - 4 cycle of ( 3x hack + grows) and then weaken
-    while (target) {
+    // hacking loop
+    while (ns.scriptRunning("lw_hackLoop.js", "home")) {
         await copyPayloads(ns);
+        // weaken security if it's more than 4
         if (ns.getServerSecurityLevel(target) - ns.getServerMinSecurityLevel(target) > 4) {
-            await weakenTarget(ns, target, 1);
+            await weakenTarget(ns, target);
             continue;
         }
 
-        if (ns.getServerMaxMoney(target) - ns.getServerMoneyAvailable(target) > 100) {
-            await growTarget(ns, target, 1);
+        // grow money if it's less than %80 max money
+        if (ns.getServerMaxMoney(target) < ns.getServerMoneyAvailable(target) * 0.8) {
+            await growTarget(ns, target);
             continue;
         }
 
-        await hackTarget(ns, target, 1);
+        await hackTarget(ns, target);
     }
 }
+
 async function copyPayloads(ns: NS) {
     const rootedServers = getRootedServers(ns).map((server) => server.hostname);
     const remoteServers = getRemoteServers(ns).map((server) => server.hostname);
     for (const server of ["home", ...remoteServers, ...rootedServers]) {
-        await ns.scp([GROW_DIR, WEAKEN_DIR, HACK_DIR, GETTERS_DIR], server);
+        await ns.scp([LW_GROW_DIR, LW_WEAKEN_DIR, LW_HACK_DIR, GETTERS_DIR], server);
     }
 }
+
 async function hackTarget(ns, target, times = 1) {
-    const hackSize = ns.getScriptRam(HACK_DIR);
+    const hackSize = ns.getScriptRam(LW_HACK_DIR);
     const rootedServers = getRootedServers(ns).map((server) => server.hostname);
     const remoteServers = getRemoteServers(ns).map((server) => server.hostname);
     for (let q = 0; q < times; q++) {
@@ -45,7 +50,7 @@ async function hackTarget(ns, target, times = 1) {
             const execCapacity = Math.floor((availableRam * 0.8) / hackSize) || 1;
 
             if (execCapacity === 0) continue;
-            ns.exec(HACK_DIR, server, execCapacity, target);
+            ns.exec(LW_HACK_DIR, server, execCapacity, target);
         }
         await sleep(ns.getHackTime(target) + 200);
     }
@@ -54,7 +59,7 @@ async function hackTarget(ns, target, times = 1) {
 async function growTarget(ns, target, times = 1) {
     const rootedServers = getRootedServers(ns).map((server) => server.hostname);
     const remoteServers = getRemoteServers(ns).map((server) => server.hostname);
-    const growSize = ns.getScriptRam(GROW_DIR);
+    const growSize = ns.getScriptRam(LW_GROW_DIR);
 
     for (let q = 0; q < times; q++) {
         for (const server of ["home", ...remoteServers, ...rootedServers]) {
@@ -62,15 +67,16 @@ async function growTarget(ns, target, times = 1) {
             const execCapacity = Math.floor(availableRam / growSize);
 
             if (execCapacity === 0) continue;
-            ns.exec(GROW_DIR, server, execCapacity, target);
+            ns.exec(LW_GROW_DIR, server, execCapacity, target);
         }
         await sleep(ns.getGrowTime(target) + 200);
     }
 }
+
 async function weakenTarget(ns, target, times = 1) {
     const rootedServers = getRootedServers(ns).map((server) => server.hostname);
     const remoteServers = getRemoteServers(ns).map((server) => server.hostname);
-    const weakenSize = ns.getScriptRam(WEAKEN_DIR);
+    const weakenSize = ns.getScriptRam(LW_WEAKEN_DIR);
 
     for (let q = 0; q < times; q++) {
         for (const server of ["home", ...remoteServers, ...rootedServers]) {
@@ -78,7 +84,7 @@ async function weakenTarget(ns, target, times = 1) {
             const execCapacity = Math.floor(availableRam / weakenSize);
 
             if (execCapacity === 0) continue;
-            ns.exec(WEAKEN_DIR, server, execCapacity, target);
+            ns.exec(LW_WEAKEN_DIR, server, execCapacity, target);
         }
         await sleep(ns.getWeakenTime(target) + 200);
     }

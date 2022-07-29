@@ -1,5 +1,5 @@
 import { names } from "/modules/GangManager/names";
-import { NS } from "/typings/Bitburner";
+import { EquipmentStats, NS } from "/typings/Bitburner";
 import { sleep } from "/utils/sleep";
 
 export class GangManager {
@@ -11,9 +11,9 @@ export class GangManager {
     async run() {
         if (!this.ns.gang.inGang()) this.ns.gang.createGang("Nite Sec");
 
-        this.buyEquipment("hacking");
         while (this.ns.scriptRunning("gang.js", "home")) {
             this.buyNewMembers();
+            this.buyEquipment("crime");
 
             this.ascendMembers();
             await sleep(1000).catch(() => {
@@ -32,8 +32,17 @@ export class GangManager {
             const ascencionResult = gang.getAscensionResult(member);
             if (!ascencionResult) continue;
 
-            if (ascencionResult.hack > 1.1) {
-                gang.ascendMember(member);
+            const results = Object.values(ascencionResult).slice(1);
+            const maxMutliplier = getAscensionLevel(this.ns, member);
+
+            if (maxMutliplier < 10) {
+                if (results.some((value) => value > 1.5)) {
+                    gang.ascendMember(member);
+                }
+            } else {
+                if (results.some((value) => value > 1.2)) {
+                    gang.ascendMember(member);
+                }
             }
         }
     }
@@ -60,11 +69,68 @@ export class GangManager {
             return false;
         }
     }
-    buyEquipment(type: string) {
-        const gang = this.ns.gang;
 
-        if (type === "hacking") {
-            // noop
+    buyEquipment(type?: string) {
+        const equipments: EquipmentInfo[] = [];
+        for (const equipmentName of this.ns.gang.getEquipmentNames()) {
+            const stats = this.ns.gang.getEquipmentStats(equipmentName);
+            const price = this.ns.gang.getEquipmentCost(equipmentName);
+            const type = this.ns.gang.getEquipmentType(equipmentName);
+
+            const res: EquipmentInfo = {
+                name: equipmentName,
+                type: type,
+                stats: stats,
+                price: price,
+            };
+
+            equipments.push(res);
+        }
+
+        const gangMembers = this.ns.gang.getMemberNames();
+        for (const member of gangMembers) {
+            const maxMutliplier = getAscensionLevel(this.ns, member);
+            if (maxMutliplier < 10) continue;
+
+            if (type === "hacking") {
+                const hackingEquipment = equipments.filter((equipment) => {
+                    return equipment.type === "Rootkit" || equipment.type === "Augmentation";
+                });
+
+                for (const equipment of hackingEquipment) {
+                    this.ns.gang.purchaseEquipment(member, equipment.name);
+                }
+            }
+
+            if (type === "crime") {
+                const crimeEquipment = equipments.filter((equipment) => {
+                    return equipment.type === "Weapon" || equipment.type === "Armor" || equipment.type === "Vehicle";
+                });
+
+                for (const equipment of crimeEquipment) {
+                    this.ns.gang.purchaseEquipment(member, equipment.name);
+                }
+            }
         }
     }
+}
+
+interface EquipmentInfo {
+    name: string;
+    type: string;
+    stats: EquipmentStats;
+    price: number;
+}
+
+function getAscensionLevel(ns: NS, member: string) {
+    const memberInfo = ns.gang.getMemberInformation(member);
+
+    return Math.max(
+        memberInfo.agi_asc_mult,
+        memberInfo.str_asc_mult,
+        memberInfo.def_asc_mult,
+        memberInfo.cha_asc_mult,
+        memberInfo.dex_asc_mult,
+        memberInfo.hack_asc_mult
+    );
 }

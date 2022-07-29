@@ -36,12 +36,11 @@ export function calculateHackLoop(ns: NS, hostname: string, percentage: number, 
         const hackSecIncrease = ns.hackAnalyzeSecurity(reqHackThreads, server.hostname);
 
         const player = ns.getPlayer();
-        const reqGrowThreads = Math.ceil(
-            numCycleForGrowthByHackAmt(server, percentage / 100, server.moneyAvailable, player, cores)
-        );
+        const reqGrowThreads =
+            Math.ceil(numCycleForGrowthByHackAmt(server, percentage / 100, server.moneyAvailable, player, cores)) || 1;
         const growSecIncrease = ns.growthAnalyzeSecurity(reqGrowThreads, undefined, cores);
 
-        const reqWeakenThreads = calculateWeakenThreads(ns, hackSecIncrease + growSecIncrease, cores);
+        const reqWeakenThreads = calculateWeakenThreads(ns, hackSecIncrease + growSecIncrease, cores) || 1;
 
         const hackTime = Math.ceil(ns.getHackTime(server.hostname));
         const growTime = Math.ceil(ns.getGrowTime(server.hostname));

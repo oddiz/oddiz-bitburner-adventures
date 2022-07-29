@@ -14,6 +14,6 @@ export async function main(ns: NS) {
         cheatyWindow.document.getElementById("overview-extra-hook-0")
     );
     while (ns.scriptRunning("/ui/ui.js", "home")) {
-        await ns.asleep(10000);
+        await ns.asleep(1000);
     }
 }

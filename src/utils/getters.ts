@@ -2,7 +2,8 @@ import { NS, Server } from "/typings/Bitburner";
 import { ceilNumberToDecimal } from "/utils/ceilNumberToDecimal";
 import { ServerHackData } from "types";
 import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
-import { homeServerActive } from "utils/homeServerActive";
+import { homeServerActive } from "/utils/homeServerActive";
+import { rootAllServers } from "/utils/rootAllServers";
 
 export function getPayloadSizes(ns: NS) {
     const result = {
@@ -66,115 +67,39 @@ export function getRemoteServers(ns: NS): Server[] {
 }
 
 export function getRootedServers(ns: NS) {
-    function hackTargetWithMethod(target: string, method: string) {
-        switch (method) {
-            case "brutessh":
-                ns.brutessh(target);
-                break;
-
-            case "ftpcrack":
-                ns.ftpcrack(target);
-                break;
-
-            case "relaysmtp":
-                ns.relaysmtp(target);
-                break;
-
-            case "http":
-                ns.httpworm(target);
-                break;
-
-            case "sql":
-                ns.sqlinject(target);
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    const rootedServers: Server[] = [];
     function isDuplicate(name: string) {
-        let duplicateFound = false;
         for (const server of rootedServers) {
             if (server.hostname === name) {
-                duplicateFound = true;
+                return true;
             }
         }
 
-        return duplicateFound;
+        return false;
     }
-    const rootOptions = ["brutessh", "ftpcrack", "relaysmtp", "http", "sql"];
+
+    const rootedServers: Server[] = [];
 
     try {
         ns.disableLog("ALL");
+        rootAllServers(ns);
+
         const allServers = getAllServers(ns);
 
-        const targets = allServers;
-
-        const playerHackingLevel = ns.getHackingLevel();
-
-        for (const target of targets) {
-            //check if server is purchased server
+        for (const target of allServers) {
             const serverInfo = ns.getServer(target);
 
             if (!serverInfo) continue;
 
             //skip player remote servers
-            if (serverInfo.purchasedByPlayer) {
-                continue;
-            }
             if (ns.hasRootAccess(target)) {
                 //ns.print(target, " is already rooted!");
 
-                if (target === "home") {
+                if (serverInfo.purchasedByPlayer || target === "home" || isDuplicate(target)) {
                     continue;
                 }
-                if (isDuplicate(target)) {
-                    continue;
-                }
+
                 rootedServers.push(serverInfo);
                 continue;
-            }
-
-            if (playerHackingLevel < ns.getServerRequiredHackingLevel(target)) {
-                //ns.print(target, " is not in your hacking level!");
-                continue;
-            }
-            const reqPorts = ns.getServerNumPortsRequired(target);
-
-            if (reqPorts > rootOptions.length) {
-                //ns.print(target, " requires more ports than I can hack!");
-                continue;
-            }
-
-            if (ns.getHackingLevel() > 48) {
-                //brute ssh is not available below 48
-
-                try {
-                    const hackQueue = rootOptions.slice(0, reqPorts);
-
-                    for (const hackMethod of hackQueue) {
-                        //ns.print(hackMethod);
-                        hackTargetWithMethod(target, hackMethod);
-                    }
-                } catch (error) {
-                    //do nothing
-                }
-            }
-
-            const server = ns.getServer(target);
-            if (server.numOpenPortsRequired > server.openPortCount) {
-                continue;
-            }
-
-            ns.nuke(target);
-
-            if (ns.hasRootAccess(target)) {
-                ns.print(target, " is now rooted!");
-                if (target !== "home" || !isDuplicate(target)) {
-                    rootedServers.push(serverInfo);
-                }
             }
         }
 
@@ -235,6 +160,7 @@ export function getServerDataToMax(ns: NS, server: string, cores = 1): ServerHac
 
     return result;
 }
+
 export function getTotalAvailableRam(ns: NS) {
     if (homeServerActive(ns)) return ns.getServer("home").maxRam - ns.getServer("home").ramUsed;
     const allRemotes = getRemoteServers(ns);
@@ -243,6 +169,7 @@ export function getTotalAvailableRam(ns: NS) {
 
     return totalAvailableRam;
 }
+
 //checks if an item already exists in an array
 const arrayContains = (array, item) => {
     for (const i of array) {
