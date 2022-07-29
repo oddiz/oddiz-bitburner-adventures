@@ -7,7 +7,7 @@ const LW_WEAKEN_DIR = "/payloads/lw_weaken.js";
 const LW_HACK_DIR = "/payloads/lw_hack.js";
 const GETTERS_DIR = "/utils/getters.js";
 
-export async function main(ns: NS) {
+export async function main(ns: NS, hackMode = true) {
     ns.tail();
     ns.disableLog("ALL");
 
@@ -22,13 +22,22 @@ export async function main(ns: NS) {
             continue;
         }
 
-        // grow money if it's less than %80 max money
-        if (ns.getServerMaxMoney(target) < ns.getServerMoneyAvailable(target) * 0.8) {
+        // grow money if it's less than max money
+        if (ns.getServerMaxMoney(target) < ns.getServerMoneyAvailable(target)) {
             await growTarget(ns, target);
             continue;
         }
 
-        await hackTarget(ns, target);
+        // if hack mode is disabled it only boosts server's money
+        if (hackMode) {
+            await hackTarget(ns, target);
+        } else {
+            // money boost complete, lower sec to min
+            while (ns.getServerSecurityLevel(target) !== ns.getServerMinSecurityLevel(target)) {
+                await weakenTarget(ns, target);
+            }
+            break;
+        }
     }
 }
 

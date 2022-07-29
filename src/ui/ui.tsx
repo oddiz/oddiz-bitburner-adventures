@@ -1,6 +1,5 @@
 import { Dashboard } from "/ui/Dashboard/Dashboard";
 import { NS } from "/typings/Bitburner";
-import { sleep } from "/utils/sleep";
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const React = cheatyWindow.React;
 const ReactDOM = cheatyWindow.ReactDOM;

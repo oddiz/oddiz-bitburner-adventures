@@ -18,7 +18,6 @@ export async function main(ns: NS) {
         const remoteServers = getRemoteServers(ns).map((server) => server.hostname);
         const rootedServers = getRootedServers(ns).map((server) => server.hostname);
 
-        console.log(rootedServers);
         for (const server of ["home", ...remoteServers, ...rootedServers]) {
             const availableRam = ns.getServerMaxRam(server) - ns.getServerUsedRam(server);
             const execCapacity = Math.floor(availableRam / weakenSize);
