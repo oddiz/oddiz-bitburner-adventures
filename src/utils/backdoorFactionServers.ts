@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { findRouteTo } from "/utils/findRouteTo";
 import { sleep } from "/utils/sleep";
-import { NS, Server } from "/typings/Bitburner";
+import { NS, Server } from "../typings/NetscriptDefinitions";
 
 const factionServers = ["CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z", "The-Cave", "w0r1d_d43m0n"];
 

@@ -1,4 +1,4 @@
-import { NS, Server } from "typings/Bitburner";
+import { NS, Server } from "/typings/NetscriptDefinitions";
 import { DispatchCommand, ServerManager, Task } from "/modules/ServerManager/ServerManager";
 import { getServerDataToMax } from "/utils/getters";
 import { ServerHackData } from "types";

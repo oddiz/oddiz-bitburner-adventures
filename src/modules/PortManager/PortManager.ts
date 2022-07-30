@@ -1,5 +1,5 @@
 import { HomeServerPortData } from "types";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { parse, stringify, Stringified } from "/utils/json";
 import { sleep } from "/utils/sleep";
 

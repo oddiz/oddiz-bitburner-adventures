@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 import { getRootedServers } from "/utils/getters";
 
 export async function main(ns: NS) {

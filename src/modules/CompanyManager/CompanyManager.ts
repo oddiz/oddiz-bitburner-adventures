@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 
 export class CompanyManager {
     private ns: NS;

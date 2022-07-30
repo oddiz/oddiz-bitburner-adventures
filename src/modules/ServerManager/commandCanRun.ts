@@ -1,5 +1,5 @@
 import { DispatchCommand, RemotesWithRamInfo } from "./ServerManager";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { getPayloadSizes } from "/utils/getters";
 
 export function commandCanRun(ns: NS, command: DispatchCommand, remoteServersWithRamInfo: RemotesWithRamInfo) {

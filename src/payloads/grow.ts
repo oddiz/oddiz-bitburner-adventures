@@ -1,5 +1,5 @@
 import { MyLocalStorage, OddizToolkit } from "types";
-import { NS } from "typings/Bitburner";
+import { NS } from "/typings/NetscriptDefinitions";
 import { COMMAND_EXEC_MIN_INTERVAL, SCRIPT_SEC_CHECK_INTERVAL, TASK_LEEWAY_MS } from "/utils/constants";
 import { parse, Stringified, stringify } from "/utils/json";
 

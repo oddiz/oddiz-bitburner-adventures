@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { killAll } from "/utils/killAll";
 import { Button } from "/ui/Dashboard/Button";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";

@@ -1,5 +1,5 @@
 import { getAllServers } from "/utils/getters";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 
 export async function main(ns: NS) {
     ns.disableLog("ALL");

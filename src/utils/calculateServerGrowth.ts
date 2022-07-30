@@ -1,4 +1,4 @@
-import { Player, Server } from "/typings/Bitburner";
+import { Player, Server } from "../typings/NetscriptDefinitions";
 
 export function calculateServerGrowth(server: Server, threads: number, p: Player, cores = 1): number {
     const numServerGrowthCycles = Math.max(Math.floor(threads), 0);

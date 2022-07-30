@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { useOnHover } from "/ui/hooks/useOnHover";
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const React = cheatyWindow.React;

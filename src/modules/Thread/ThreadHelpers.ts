@@ -1,5 +1,5 @@
 //stolen from source code of bitburner to find out about grow-security relation
-import { Player, Server } from "/typings/Bitburner";
+import { Player, Server } from "../../typings/NetscriptDefinitions";
 
 const CONSTANTS = {
     ServerBaseGrowthRate: 1.03, // Unadjusted Growth rate

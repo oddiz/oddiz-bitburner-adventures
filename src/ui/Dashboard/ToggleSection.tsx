@@ -1,5 +1,5 @@
 import { Switch } from "/ui/Dashboard/Switch";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { sleep } from "/utils/sleep";
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const React = cheatyWindow.React;

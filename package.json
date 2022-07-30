@@ -5,10 +5,13 @@
   "main": "main.ts",
   "author": "oddiz",
   "license": "MIT",
+  "type": "module",
+
   "scripts": {
     "build": "tsc",
     "dev": "rimraf /build/* && tsc -w",
-    "delete": "rimraf build/*"
+    "delete": "rimraf build/*",
+    "updateDefs": "node ./src/typings/updateDefs.js"
   },
   "devDependencies": {
     "@types/node": "^17.0.42",

@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 
 export function homeServerActive(ns: NS) {
     const remoteServers = ns.getPurchasedServers().map((server) => ns.getServer(server));

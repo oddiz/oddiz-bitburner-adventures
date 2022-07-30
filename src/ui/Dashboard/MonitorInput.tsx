@@ -1,4 +1,4 @@
-import { NS } from "/typings/Bitburner";
+import { NS } from "../../typings/NetscriptDefinitions";
 import { getAllServers } from "/utils/getters";
 import { sleep } from "/utils/sleep";
 

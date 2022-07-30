@@ -1,4 +1,4 @@
-import { NS, Server } from "typings/Bitburner";
+import { NS, Server } from "/typings/NetscriptDefinitions";
 import { getRootedServers } from "/utils/getters";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { Thread } from "/modules/Thread/Thread";

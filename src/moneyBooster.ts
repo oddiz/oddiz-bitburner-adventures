@@ -1,5 +1,5 @@
 import { Thread } from "/modules/Thread/Thread";
-import { NS } from "/typings/Bitburner";
+import { NS } from "./typings/NetscriptDefinitions";
 import { GrowifyCommand, ReadifyCommand, ServerManager, Task } from "/modules/ServerManager/ServerManager";
 import { getTotalAvailableRam, getPayloadSizes } from "/utils/getters";
 import { homeServerActive } from "/utils/homeServerActive";

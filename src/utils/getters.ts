@@ -1,4 +1,4 @@
-import { NS, Server } from "/typings/Bitburner";
+import { NS, Server } from "../typings/NetscriptDefinitions";
 import { ceilNumberToDecimal } from "/utils/ceilNumberToDecimal";
 import { ServerHackData } from "types";
 import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";

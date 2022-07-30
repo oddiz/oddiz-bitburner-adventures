@@ -1,5 +1,5 @@
 import { Dashboard } from "/ui/Dashboard/Dashboard";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const React = cheatyWindow.React;
 const ReactDOM = cheatyWindow.ReactDOM;

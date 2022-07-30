@@ -1,6 +1,6 @@
 import { getPayloadSizes } from "utils/getters";
 import { DispatchCommand } from "/modules/ServerManager/ServerManager";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 
 export function calculateCommandSize(ns: NS, command: DispatchCommand) {
     const scriptSizes = getPayloadSizes(ns);

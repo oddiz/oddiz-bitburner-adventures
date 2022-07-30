@@ -1,7 +1,7 @@
 import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
 import { numCycleForGrowthByHackAmt } from "/modules/Thread/ThreadHelpers";
 import { getTotalAvailableRam, getPayloadSizes } from "/utils/getters";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 import { HackLoopInfo } from "/modules/ThreadManager/ThreadManager";
 import { COMMAND_EXEC_MIN_INTERVAL, RAM_ALLOCATION_RATIO } from "utils/constants";
 

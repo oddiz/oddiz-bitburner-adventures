@@ -1,5 +1,5 @@
 import { getRemoteServers } from "utils/getters";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 
 export function main(ns: NS) {
     const allRemotes = getRemoteServers(ns);

@@ -1,5 +1,5 @@
 import { ServerManager } from "/modules/ServerManager/ServerManager";
-import { NS, Server } from "/typings/Bitburner";
+import { NS, Server } from "../typings/NetscriptDefinitions";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME, SERVER_MAINTAINER_TICK_INTERVAL } from "/utils/constants";
 import { getRemoteServers } from "/utils/getters";
 import { sleep } from "/utils/sleep";

@@ -1,4 +1,4 @@
-import { NS } from "./typings/Bitburner";
+import { NS } from "./typings/NetscriptDefinitions";
 import { getRemoteServers, getRootedServers } from "/utils/getters";
 
 const GROW_DIR = "/payloads/lw_grow.js";

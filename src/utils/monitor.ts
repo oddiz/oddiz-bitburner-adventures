@@ -1,5 +1,5 @@
 import { MONITORJS_REFRESH_INTERVAL } from "/utils/constants";
-import { NS } from "/typings/Bitburner";
+import { NS } from "../typings/NetscriptDefinitions";
 
 export async function main(ns: NS) {
     const flags = ns.flags([["help", false]]);

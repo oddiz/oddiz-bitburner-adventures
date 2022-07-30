@@ -1,4 +1,4 @@
-import { NS, Server } from "typings/Bitburner";
+import { NS, Server } from "/typings/NetscriptDefinitions";
 import { commandCanRun } from "/modules/ServerManager/commandCanRun";
 import { ServerMaintainer } from "/maintainers/RemoteServerMaintainer";
 import { getPayloadSizes, getRemoteServers, getRootedServers } from "/utils/getters";

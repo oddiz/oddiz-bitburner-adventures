@@ -1,5 +1,5 @@
 import { names } from "/modules/GangManager/names";
-import { EquipmentStats, NS } from "/typings/Bitburner";
+import { EquipmentStats, NS } from "../../typings/NetscriptDefinitions";
 import { sleep } from "/utils/sleep";
 
 export class GangManager {

@@ -1,5 +1,5 @@
 import { ThreadManager } from "/modules/ThreadManager/ThreadManager";
-import { NS } from "typings/Bitburner";
+import { NS } from "/typings/NetscriptDefinitions";
 import { ServerManager } from "/modules/ServerManager/ServerManager";
 import { sleep } from "/utils/sleep";
 import { ODDIZ_HACK_TOOLKIT_SCRIPT_NAME } from "/utils/constants";

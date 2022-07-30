@@ -1,5 +1,5 @@
 import { OddizToolkit } from "types";
-import { NS } from "typings/Bitburner";
+import { NS } from "/typings/NetscriptDefinitions";
 import { SCRIPT_SEC_CHECK_INTERVAL } from "/utils/constants";
 import { parse, Stringified, stringify } from "/utils/json";
 const MAX_WEAKEN_WAIT_TIME = 1000;

@@ -1,4 +1,4 @@
-import { NodeStats, NS } from "/typings/Bitburner";
+import { NodeStats, NS } from "../typings/NetscriptDefinitions";
 import { HACKNET_NODE_MANAGER_INTERVAL } from "/utils/constants";
 import { sleep } from "/utils/sleep";
 
