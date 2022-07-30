@@ -4,6 +4,8 @@ import { sleep } from "/utils/sleep";
 import { NS, Server } from "../typings/NetscriptDefinitions";
 
 const factionServers = ["CSEC", "avmnite-02h", "I.I.I.I", "run4theh111z", "The-Cave", "w0r1d_d43m0n"];
+const cheatyWindow = eval("window") as Window & typeof globalThis;
+const cheatyDoc = eval("document") as Document;
 
 export async function main(ns: NS) {
     ns.disableLog("ALL");
@@ -40,8 +42,7 @@ export async function backdoorFactionServers(ns: NS) {
 }
 
 async function sendTerminalCommand(ns: NS, query: string) {
-    const cheatyWindow = eval("window") as Window;
-    const terminalInput = cheatyWindow.document.getElementById("terminal-input") as HTMLInputElement;
+    const terminalInput = cheatyDoc.getElementById("terminal-input") as HTMLInputElement;
 
     let enterPressed = false;
     if (!terminalInput) {
@@ -57,13 +58,13 @@ async function sendTerminalCommand(ns: NS, query: string) {
 
     triggerInputChange(terminalInput, query);
 
-    cheatyWindow.document.addEventListener("keyup", onKeyUpFunc);
+    cheatyDoc.addEventListener("keyup", onKeyUpFunc);
 
     while (!enterPressed && ns.scriptRunning("/utils/backdoorFactionServers.js", "home")) {
         await sleep(100);
     }
 
-    cheatyWindow.document.removeEventListener("keyup", onKeyUpFunc);
+    cheatyDoc.removeEventListener("keyup", onKeyUpFunc);
 
     return;
 }
@@ -72,9 +73,13 @@ function getBackdoorTime(ns: NS, server: Server) {
     return ns.getHackTime(server.hostname) / 4; //got this info from bitburner source code
 }
 
-const inputTypes = [window.HTMLInputElement, window.HTMLSelectElement, window.HTMLTextAreaElement];
-
 export const triggerInputChange = (node, value = "") => {
+    const inputTypes = [
+        cheatyWindow.HTMLInputElement,
+        cheatyWindow.HTMLSelectElement,
+        cheatyWindow.HTMLTextAreaElement,
+    ];
+
     if (!node) throw Error("Error in triggering or changing input");
     // only process the change on elements we know have a value setter in their constructor
 

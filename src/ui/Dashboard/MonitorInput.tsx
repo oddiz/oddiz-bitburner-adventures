@@ -3,6 +3,8 @@ import { getAllServers } from "/utils/getters";
 import { sleep } from "/utils/sleep";
 
 const cheatyWindow = eval("window") as Window & typeof globalThis;
+const cheatyDocument = eval("document") as Document & typeof globalThis;
+
 const React = cheatyWindow.React;
 const { useState, useMemo } = React;
 
@@ -36,12 +38,12 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
         }
     };
     const onFocusHandler = () => {
-        const terminalInput = cheatyWindow.document.getElementById("terminal-input") as HTMLInputElement;
+        const terminalInput = cheatyDocument.getElementById("terminal-input") as HTMLInputElement;
         terminalInput.disabled = true;
     };
 
     const onFocusOut = () => {
-        const terminalInput = cheatyWindow.document.getElementById("terminal-input") as HTMLInputElement;
+        const terminalInput = cheatyDocument.getElementById("terminal-input") as HTMLInputElement;
         terminalInput.disabled = false;
     };
     const suggestionsSection = suggestions.map((server) => {
