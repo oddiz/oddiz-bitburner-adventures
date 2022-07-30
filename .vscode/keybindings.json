@@ -1,7 +1,0 @@
-[
-	{
-		"key": "ctrl+s",
-		"command": "workbench.action.tasks.build",
-		"when": "editorTextFocus && editorLangId === 'typescript'"
-	}
-]
