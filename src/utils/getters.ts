@@ -4,6 +4,7 @@ import { ServerHackData } from "types";
 import { calculateWeakenThreads } from "/utils/calculateWeakenThreads";
 import { homeServerActive } from "/utils/homeServerActive";
 import { rootAllServers } from "/utils/rootAllServers";
+import { getAllServers } from "/utils/getAllServers";
 
 export function getPayloadSizes(ns: NS) {
     const result = {
@@ -13,38 +14,6 @@ export function getPayloadSizes(ns: NS) {
     };
 
     return result;
-}
-
-export function getAllServers(ns: NS) {
-    try {
-        ns.disableLog("scan");
-
-        const serversToCheck = ["home"];
-        const serversChecked: string[] = [];
-
-        while (serversToCheck.length > 0) {
-            const serverToCheck = serversToCheck.pop();
-            if (!serverToCheck) continue;
-
-            if (arrayContains(serversChecked, serverToCheck)) continue;
-
-            //ns.print("Scanning server: ", serverToCheck);
-            const results = ns.scan(serverToCheck);
-            serversChecked.push(serverToCheck);
-
-            for (const result of results) {
-                if (!arrayContains(serversChecked, result)) {
-                    serversToCheck.push(result);
-                }
-            }
-        }
-
-        return serversChecked;
-    } catch (error) {
-        console.log("Error in getAllServers: ", error);
-
-        return [];
-    }
 }
 
 export function getRemoteServers(ns: NS): Server[] {
@@ -171,11 +140,3 @@ export function getTotalAvailableRam(ns: NS) {
 }
 
 //checks if an item already exists in an array
-const arrayContains = (array, item) => {
-    for (const i of array) {
-        if (i === item) {
-            return true;
-        }
-    }
-    return false;
-};

@@ -1,6 +1,5 @@
 import { NS } from "../../typings/NetscriptDefinitions";
-import { getAllServers } from "/utils/getters";
-import { sleep } from "/utils/sleep";
+import { getAllServers } from "/utils/getAllServers";
 
 const cheatyWindow = eval("window") as Window & typeof globalThis;
 const cheatyDocument = eval("document") as Document & typeof globalThis;
@@ -39,12 +38,13 @@ export const MonitorInput = ({ ns }: { ns: NS }) => {
     };
     const onFocusHandler = () => {
         const terminalInput = cheatyDocument.getElementById("terminal-input") as HTMLInputElement;
-        terminalInput.disabled = true;
+
+        if (terminalInput) terminalInput.disabled = true;
     };
 
     const onFocusOut = () => {
         const terminalInput = cheatyDocument.getElementById("terminal-input") as HTMLInputElement;
-        terminalInput.disabled = false;
+        if (terminalInput) terminalInput.disabled = false;
     };
     const suggestionsSection = suggestions.map((server) => {
         return <div key={server}>{server}</div>;

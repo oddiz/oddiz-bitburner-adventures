@@ -1,4 +1,4 @@
-import { getAllServers } from "/utils/getters";
+import { getAllServers } from "/utils/getAllServers";
 import { NS } from "../typings/NetscriptDefinitions";
 
 export async function main(ns: NS) {
