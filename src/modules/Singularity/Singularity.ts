@@ -1,12 +1,12 @@
 import { NS } from "/typings/NetscriptDefinitions";
 
 export class SingularityManager {
-    private ns: NS
+    private ns: NS;
     constructor(ns: NS) {
         this.ns = ns;
     }
 
     run = async () => {
-        this.ns.singularity.
-        }
+        this.ns.singularity;
+    };
 }

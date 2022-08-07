@@ -44,23 +44,23 @@ export function rootAllServers(ns: NS) {
     function hackTargetWithMethod(target: string, method: string) {
         switch (method) {
             case "brutessh":
-                ns.brutessh(target);
+                if (ns.fileExists("BruteSSH.exe")) ns.brutessh(target);
                 break;
 
             case "ftpcrack":
-                ns.ftpcrack(target);
+                if (ns.fileExists("FTPCrack.exe")) ns.ftpcrack(target);
                 break;
 
             case "relaysmtp":
-                ns.relaysmtp(target);
+                if (ns.fileExists("relaySMTP.exe")) ns.relaysmtp(target);
                 break;
 
             case "http":
-                ns.httpworm(target);
+                if (ns.fileExists("HTTPWorm.exe")) ns.httpworm(target);
                 break;
 
             case "sql":
-                ns.sqlinject(target);
+                if (ns.fileExists("SQLInject.exe")) ns.sqlinject(target);
                 break;
 
             default:

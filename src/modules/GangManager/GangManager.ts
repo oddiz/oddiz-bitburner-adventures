@@ -1,7 +1,30 @@
+/* 
+NOTES:
+maintenance: 
+    if wanted level penalty is high (above X) get respect + lose wanted level
+    
+gang flow:
+
+    train until 30 level 
+    get to 125 rep to hire 6 members
+
+    train until 500 hacking level or _____ combat level
+
+    farm rep until .......  maybe max member?
+
+    train new + territory war old
+
+    once %100 territory train all until .......
+
+    farm money
+*/
+
 import { names } from "/modules/GangManager/names";
 import { EquipmentStats, NS } from "../../typings/NetscriptDefinitions";
 import { sleep } from "/utils/sleep";
 
+const hackingFactions = ["Nite Sec"];
+const crimeFactions = ["The Syndicate"];
 export class GangManager {
     private ns: NS;
     constructor(ns: NS) {
@@ -10,10 +33,12 @@ export class GangManager {
 
     async run() {
         if (!this.ns.gang.inGang()) this.ns.gang.createGang("Nite Sec");
-
+        const factionName = this.ns.gang.getGangInformation().faction;
         while (this.ns.scriptRunning("gang.js", "home")) {
             this.buyNewMembers();
-            this.buyEquipment("crime");
+
+            if (crimeFactions.includes(factionName)) this.buyEquipment("crime");
+            if (hackingFactions.includes(factionName)) this.buyEquipment("hacking");
 
             this.ascendMembers();
             await sleep(1000).catch(() => {
@@ -68,6 +93,19 @@ export class GangManager {
         } else {
             return false;
         }
+    }
+
+    buyAugments(type?: string) {
+        const hackingAugments = ["Bitwire", "Neuralstimulator", "DataJack"];
+        const crimeAugments = [
+            "Bionic Arms",
+            "Bionic Legs",
+            "Bionic Spine",
+            "BrachiBlades",
+            "Nanofiber Weave",
+            "Synthetic Heart",
+            "Synfibril Muscle",
+        ];
     }
 
     buyEquipment(type?: string) {

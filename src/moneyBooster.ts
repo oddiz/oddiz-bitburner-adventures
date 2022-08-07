@@ -3,8 +3,8 @@ import { NS } from "./typings/NetscriptDefinitions";
 import { GrowifyCommand, ReadifyCommand, ServerManager, Task } from "/modules/ServerManager/ServerManager";
 import { getTotalAvailableRam, getPayloadSizes } from "/utils/getters";
 import { homeServerActive } from "/utils/homeServerActive";
-import { calculateServerGrowth } from "./utils/calculateServerGrowth";
-import { calculateGrowCycles } from "./utils/calculateGrowCycles";
+import { calculateServerGrowth } from "/utils/calculateServerGrowth";
+import { calculateGrowCycles } from "/utils/calculateGrowCycles";
 import { sleep } from "/utils/sleep";
 
 const growChunkAmount = 10;
@@ -78,12 +78,17 @@ export async function main(ns: NS) {
         serverManager.dispatch(weakenCommand);
 
         for (let i = 0; i < growThreads / growChunkAmount; i++) {
-            serverManager.dispatch(growCommand);
+            const success = serverManager.dispatch(growCommand);
+            if (!success) break;
             await sleep(10);
         }
     };
 
-    await spawnThreads();
+    while (ns.scriptRunning(ns.getScriptName(), "home")) {
+        await spawnThreads();
+
+        sleep(1500);
+    }
 }
 
 /*
