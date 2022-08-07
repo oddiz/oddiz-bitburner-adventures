@@ -32,9 +32,7 @@ export function rootAllServers(ns: NS) {
             hackTargetWithMethod(server, method);
         }
 
-        if (ns.getServerNumPortsRequired(server) === 0) {
-            ns.nuke(server);
-        }
+        ns.nuke(server);
 
         if (ns.hasRootAccess(server)) {
             ns.print(server, " is now rooted!");
@@ -44,23 +42,23 @@ export function rootAllServers(ns: NS) {
     function hackTargetWithMethod(target: string, method: string) {
         switch (method) {
             case "brutessh":
-                if (ns.fileExists("BruteSSH.exe")) ns.brutessh(target);
+                if (ns.fileExists("BruteSSH.exe", "home")) ns.brutessh(target);
                 break;
 
             case "ftpcrack":
-                if (ns.fileExists("FTPCrack.exe")) ns.ftpcrack(target);
+                if (ns.fileExists("FTPCrack.exe", "home")) ns.ftpcrack(target);
                 break;
 
             case "relaysmtp":
-                if (ns.fileExists("relaySMTP.exe")) ns.relaysmtp(target);
+                if (ns.fileExists("relaySMTP.exe", "home")) ns.relaysmtp(target);
                 break;
 
             case "http":
-                if (ns.fileExists("HTTPWorm.exe")) ns.httpworm(target);
+                if (ns.fileExists("HTTPWorm.exe", "home")) ns.httpworm(target);
                 break;
 
             case "sql":
-                if (ns.fileExists("SQLInject.exe")) ns.sqlinject(target);
+                if (ns.fileExists("SQLInject.exe", "home")) ns.sqlinject(target);
                 break;
 
             default:
