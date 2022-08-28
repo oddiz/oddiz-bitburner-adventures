@@ -3,7 +3,7 @@ import { NS } from "../typings/NetscriptDefinitions";
 
 export async function main(ns: NS) {
     const flags = ns.flags([["help", false]]);
-    if (flags._.length === 0 || flags.help) {
+    if (ns.args.length === 0 || flags.help) {
         ns.tprint("This script helps visualize the money and security of a server.");
         ns.tprint(`USAGE: run ${ns.getScriptName()} SERVER_NAME`);
         ns.tprint("Example:");

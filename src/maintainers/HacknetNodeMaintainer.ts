@@ -29,7 +29,7 @@ class HackNodeManager {
             }
             const hacknodeIncome = allNodes.reduce((acc, curr) => acc + curr.production, 0); //per second
 
-            const hackScriptIncome = this.ns.getScriptIncome()[0];
+            const hackScriptIncome = this.ns.getScriptIncome("main.js", "home");
 
             const hackNodeBudget = (hacknodeIncome + hackScriptIncome) * 60 * 10; // 10 mins worth of income
 
@@ -62,7 +62,7 @@ class HackNodeManager {
 
                 let ttp;
                 if (nodeFormulas.constants()) {
-                    const moneyMult = this.ns.getPlayer().hacknet_node_money_mult;
+                    const moneyMult = this.ns.getPlayer().mults.hacknet_node_money;
 
                     const [level, ram, cores] = [nodeInfo.level, nodeInfo.ram, nodeInfo.cores];
                     const income = nodeFormulas.moneyGainRate(level, ram, cores, moneyMult);

@@ -3,7 +3,7 @@ import { NS } from "/typings/NetscriptDefinitions";
 export function main(ns: NS) {
     ns.disableLog("ALL");
 
-    getAllServers(ns);
+    ns.tprint(getAllServers(ns));
 }
 
 export function getAllServers(ns: NS) {

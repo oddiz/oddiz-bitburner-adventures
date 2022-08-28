@@ -7,6 +7,7 @@ const { useState } = React;
 
 const NODE_MAINTAINER_PATH = "/maintainers/HacknetNodeMaintainer.js";
 const GANG_PATH = "gang.js";
+const SINGU_PATH = "singularity.js";
 
 export const ToggleSection = ({ ns }: { ns: NS }) => {
     const [nodeMaintActive, setNodeMaintActive] = useState(ns.scriptRunning(NODE_MAINTAINER_PATH, "home"));
@@ -15,6 +16,7 @@ export const ToggleSection = ({ ns }: { ns: NS }) => {
     );
 
     const [gangActive, setGangActive] = useState(ns.scriptRunning(GANG_PATH, "home"));
+    const [singuActive, setSinguActive] = useState(ns.scriptRunning(GANG_PATH, "home"));
 
     return (
         <div
@@ -70,6 +72,19 @@ export const ToggleSection = ({ ns }: { ns: NS }) => {
                     }
                 }}
                 active={gangActive}
+            />
+            <Switch
+                title="Singularity"
+                onClickHandler={() => {
+                    if (ns.scriptRunning(SINGU_PATH, "home")) {
+                        ns.scriptKill(SINGU_PATH, "home");
+                        setSinguActive(false);
+                    } else {
+                        ns.exec(SINGU_PATH, "home");
+                        setSinguActive(true);
+                    }
+                }}
+                active={singuActive}
             />
         </div>
     );

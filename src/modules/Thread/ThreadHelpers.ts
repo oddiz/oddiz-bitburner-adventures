@@ -42,7 +42,7 @@ export function numCycleForGrowthCorrected(
     // total of all grow thread multipliers
     const serverGrowthPercentage = server.serverGrowth / 100.0;
     const coreMultiplier = 1 + (cores - 1) / 16;
-    const threadMultiplier = serverGrowthPercentage * p.hacking_grow_mult * coreMultiplier * 1; // * BitNodeMultipliers.ServerGrowthRate = default value is 1;
+    const threadMultiplier = serverGrowthPercentage * p.mults.hacking_grow * coreMultiplier * 1; // * BitNodeMultipliers.ServerGrowthRate = default value is 1;
 
     /* To understand what is done below we need to do some math. I hope the explanation is clear enough.
      * First of, the names will be shortened for ease of manipulation:

@@ -23,22 +23,28 @@ import { names } from "/modules/GangManager/names";
 import { EquipmentStats, NS } from "../../typings/NetscriptDefinitions";
 import { sleep } from "/utils/sleep";
 
-const hackingFactions = ["Nite Sec"];
+const hackingFactions = ["NiteSec"];
 const crimeFactions = ["The Syndicate"];
 export class GangManager {
+    private factionType: "hacking" | "crime" | undefined;
     private ns: NS;
     constructor(ns: NS) {
         this.ns = ns;
+        this.factionType;
     }
 
     async run() {
-        if (!this.ns.gang.inGang()) this.ns.gang.createGang("Nite Sec");
+        if (!this.ns.gang.inGang()) this.ns.gang.createGang("NiteSec");
         const factionName = this.ns.gang.getGangInformation().faction;
+
+        if (crimeFactions.includes(factionName)) this.factionType = "crime";
+        else if (hackingFactions.includes(factionName)) this.factionType = "hacking";
+        else throw new Error("Faction type not found");
+
         while (this.ns.scriptRunning("gang.js", "home")) {
             this.buyNewMembers();
 
-            if (crimeFactions.includes(factionName)) this.buyEquipment("crime");
-            if (hackingFactions.includes(factionName)) this.buyEquipment("hacking");
+            this.buyEquipment(this.factionType);
 
             this.ascendMembers();
             await sleep(1000).catch(() => {

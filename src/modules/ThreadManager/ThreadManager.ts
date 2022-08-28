@@ -40,10 +40,6 @@ export class ThreadManager extends EventEmitter {
         this.log("Starting...");
         this.availableServers = getRootedServers(this.ns);
 
-        await this.ns
-            .write("/logs/hackable_servers.txt", JSON.stringify(this.availableServers, null, 4), "w")
-            .catch((err) => this.log(err));
-
         this.once("all_threads_ready", () => {
             try {
                 const calculatedServerLoopInfos = this.getHackLoopsFromThreads();
